@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "snapshot_version": "49d1190e971b8b778cab209c2b1632c42b509a72394960ec7081b6de7dd09343",
+  "datasets": [
+    {
+      "id": "iv.dev.4.ff.1",
+      "title": "iVINS Dev 4 Flight Field 01",
+      "description": "Flight-field recording captured with the iVINS dev_04 hardware profile.",
+      "family": "ivins",
+      "recording": {"name": "dev_4_flight_field_01", "ground_truth": null},
+      "profile": "dev_04",
+      "calibrations": [
+        {"name": "Kalibr dev4 try1", "path": "configurations/ivins/kalibr/dev4/try1"}
+      ],
+      "links": [
+        {"label": "Provenance", "url": "https://1drv.ms/u/c/43b02ab6ed7aabf6/IQDBuTo3UtHXSof4k6cDPAWiAaR3vkQkJit8j5QlpO7ZRP0?e=7Xa9pH"}
+      ],
+      "derivable_formats": ["rosbag2"],
+      "artifacts": [
+        {
+          "format": "rosbag",
+          "version": "1",
+          "state": "published",
+          "size": 17,
+          "sha256": "2ff46b59aa009af3d4d0c28da30a3ed53c46e7142773a5ec6beccae554a280e1",
+          "download_url": "/v1/datasets/iv.dev.4.ff.1/artifacts/rosbag/1/download"
+        }
+      ]
+    }
+  ]
+}

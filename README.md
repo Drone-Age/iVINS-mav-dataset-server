@@ -1,118 +1,62 @@
 # iVINS MAV Dataset Server
 
-A minimal LAN HTTP API around the raw-catalog CLI in the sibling
-`iVINS-mav-dataset` registry. It does not duplicate download validation:
-registry lookup, resolution, and fetch operations call the existing CLI.
+Dataset Server v1 is the authoritative catalog and binary store for the public
+iVINS dataset storefront. Published versions are immutable. Draft uploads and
+internal storage details never appear in the anonymous public projection.
 
-This MVP is for a trusted private LAN only. It binds host port `8080` on
-`0.0.0.0` by default and requires `X-API-Key` on every request. Restrict the
-port to private-network interfaces/subnets in the host firewall. Never configure
-router port forwarding, public cloud exposure, a public reverse proxy, or an
-Internet-facing firewall rule. Replace this shared-key design before any wider
-network deployment.
+## Run locally
 
-## Local configuration
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+$env:IVINS_API_KEY = "replace-with-a-long-random-value"
+$env:IVINS_DATA_ROOT = "var"
+.venv\Scripts\python server.py
+```
 
-Copy `.env.example` to ignored `.env`. Set:
+The database defaults to `var/catalog.sqlite3`; binaries are stored below
+`var/artifacts/`, and incomplete uploads below `var/staging/`. Back up the
+database and artifact tree together. `var/` and `.env` are ignored. The service
+binds to `127.0.0.1` unless `HOST` is explicitly configured. TLS and publisher
+credential rotation belong at the deployment boundary.
 
-- `IVINS_REGISTRY_HOST_ROOT`: canonical `iVINS-mav-dataset` checkout.
-- `IVINS_RAW_HOST_ROOT`: host DataSets directory.
-- `IVINS_IMPORT_HOST_ROOT`: host source subtree mounted read-only at `/imports`.
-- `IVINS_BIND_ADDRESS`: host bind address; defaults to `0.0.0.0`.
-- `IVINS_PORT`: host port; defaults to `8080`.
-- `IVINS_API_KEY`: long random local secret.
+## Dataset Server v1 contract
 
-Do not commit, print, log, or paste the API key or resolver credentials into
-chat. The registry is mounted read-only at `/registry`; only the raw root is
-writable at `/data`. Existing raw-root contents are not initialized or reindexed
-by starting the service.
-
-Optional OneDrive/Google resolver credentials remain host-provided:
-
-- `IVINS_ONEDRIVE_TOKEN`
-- `IVINS_GOOGLE_DRIVE_API_KEY`
-- `IVINS_GOOGLE_DRIVE_TOKEN`
-
-## API
-
-All requests require `X-API-Key`.
+Anonymous:
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | Service health |
-| GET | `/v1/datasets/{standard_id}` | Registry format summary |
-| GET | `/v1/datasets/{standard_id}/artifacts` | Registry and local artifact states |
-| POST | `/v1/datasets/{standard_id}/fetch` | Queue a fetch or supported local conversion with JSON `{"format":"rosbag"}` |
-| POST | `/v1/datasets/{standard_id}/import-local` | Queue copy-only ROS1 import with `format` and `source_path` |
-| GET | `/v1/jobs/{job_id}` | Inspect in-process job state |
-| GET | `/v1/datasets/{standard_id}/artifacts/{format}/download` | Download an already-present file with HTTP Range support |
+| `GET` | `/health` | Health and schema version |
+| `GET` | `/v1/catalog` | Deterministic published-only snapshot |
+| `GET` | `/v1/datasets/{id}/artifacts/{format}/{version}/download` | Immutable bytes with Range support |
 
-For a rosbag2 request whose registry artifact is not directly downloadable,
-the raw catalog can convert an existing local ROS1 bag with pinned
-`rosbags==0.11.3`; the server image includes this non-ROS-runtime dependency.
-Conversion uses temporary output, validates the rosbag2 directory, publishes
-atomically, preserves the ROS1 source, and refuses overwrite. When the ROS1
-source is not local, normal registry fetch rules still apply—local-import and
-provenance links are never fetched implicitly.
+Publisher (`Authorization: Bearer …`, with `X-API-Key` retained as a local
+compatibility header):
 
-Fetch returns `409` when neither a directly downloadable artifact nor a usable
-conversion source is available. Jobs are held in memory and are lost on restart.
-This MVP has no durable queue, cancellation, retry scheduler, or multi-instance
-coordination. The container deliberately uses one Gunicorn worker with multiple
-threads so all requests see the same in-process job table.
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/uploads` | Create/idempotently recover an upload session |
+| `PUT` | `/v1/uploads/{id}/content` | Stream bytes and verify declared size/SHA-256 |
+| `POST` | `/v1/uploads/{id}/publish` | Atomically move a verified draft into the public catalog |
 
-Local import accepts any readable regular `.bag` path in the CLI. Docker cannot
-see arbitrary host paths unless they are mounted, so this deployment explicitly
-mounts the configured `IVINS_IMPORT_HOST_ROOT` subtree read-only at `/imports`.
-The API accepts either a host path below that configured subtree or a container
-`/imports/...` path and translates it safely. Broaden/change the mount explicitly
-when another source tree is needed; no broader host filesystem is mounted
-silently. Import copies through a temporary file, preserves the original,
-refuses overwrite, checks free space, hashes the result, and publishes to
-`/data/datasets/<family>/<standard-id>/<format>/data.bag`.
+`POST /v1/uploads` accepts `dataset_id`, `format`, `version`, `size`, `sha256`,
+and public `metadata`. Identifiers are validated, the maximum streaming size is
+controlled by `IVINS_MAX_UPLOAD_BYTES`, checksum failures become rejected
+drafts, and an existing published `(dataset_id, format, version)` is never
+overwritten. Errors use `{"error":{"code":"…","message":"…","details":{…}}}`.
+Credentials are neither returned nor logged by application code.
 
-The import endpoint is powerful because authenticated LAN clients can request
-reads from the configured host subtree. Keep the API key secret, restrict port
-8080 to trusted LAN clients, and never expose this endpoint to the Internet.
+The normative public schema and interoperable fixture are in [`contract/`](contract/).
+The fixture represents `iv.dev.4.ff.1`; its tiny artifact digest is deliberately
+test data, not a claim about the production recording.
 
-### curl
+## Verification
 
-Set the key locally without placing it in shell history:
-
-```text
-curl -H "X-API-Key: $IVINS_API_KEY" http://SERVER_LAN_IP:8080/health
-curl -H "X-API-Key: $IVINS_API_KEY" http://SERVER_LAN_IP:8080/v1/datasets/kv.c
-curl -H "X-API-Key: $IVINS_API_KEY" http://SERVER_LAN_IP:8080/v1/datasets/kv.c/artifacts
-curl -H "X-API-Key: $IVINS_API_KEY" -H "Content-Type: application/json" -d '{"format":"rosbag"}' http://SERVER_LAN_IP:8080/v1/datasets/kv.c/fetch
-curl -H "X-API-Key: $IVINS_API_KEY" -H "Content-Type: application/json" -d '{"format":"rosbag","source_path":"/imports/path/to/data.bag"}' http://SERVER_LAN_IP:8080/v1/datasets/iv.dev.4.ff.1/import-local
-curl -H "X-API-Key: $IVINS_API_KEY" -H "Range: bytes=0-1023" http://SERVER_LAN_IP:8080/v1/datasets/kv.c/artifacts/rosbag/download
+```powershell
+.venv\Scripts\python -m unittest discover -s tests -v
 ```
 
-### PowerShell
-
-```text
-$headers = @{ "X-API-Key" = $env:IVINS_API_KEY }
-Invoke-RestMethod -Headers $headers http://SERVER_LAN_IP:8080/health
-Invoke-RestMethod -Headers $headers http://SERVER_LAN_IP:8080/v1/datasets/kv.c
-Invoke-RestMethod -Method Post -Headers $headers -ContentType "application/json" -Body '{"format":"rosbag"}' http://SERVER_LAN_IP:8080/v1/datasets/kv.c/fetch
-Invoke-RestMethod -Method Post -Headers $headers -ContentType "application/json" -Body '{"format":"rosbag","source_path":"/imports/path/to/data.bag"}' http://SERVER_LAN_IP:8080/v1/datasets/iv.dev.4.ff.1/import-local
-```
-
-## Run
-
-```text
-docker compose build server
-docker compose up -d server
-docker compose logs server
-docker compose down
-```
-
-Run automated tests on the host with:
-
-```text
-python -m unittest discover -s tests -p "test_*.py" -v
-```
-
-The container runs as UID/GID `10001`, has a read-only root filesystem, drops
-all Linux capabilities, enables `no-new-privileges`, and mounts neither the host
-home directory nor the Docker socket.
+The suite covers anonymous reads, authentication failure, streamed upload,
+checksum rejection, atomic publication, immutable versions, deterministic
+snapshots, private-field exclusion, traversal/identifier validation, HTTP Range,
+and byte-identical download. Production deployment is intentionally outside v1.

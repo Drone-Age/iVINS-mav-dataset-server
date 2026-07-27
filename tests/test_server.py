@@ -1,178 +1,105 @@
-"""Offline tests for the LAN API."""
+"""Offline integration and security tests for Dataset Server v1."""
 
-import json
+import hashlib
 import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
 
 os.environ["IVINS_API_KEY"] = "offline-test-key"
-
 import server
-
-
-ROWS = [
-    {
-        "standard_id": "x.test",
-        "dataset": "fixture",
-        "format": "rosbag",
-        "registry_status": "verified",
-        "local_status": "missing",
-        "path": None,
-    },
-    {
-        "standard_id": "x.test",
-        "dataset": "fixture",
-        "format": "rosbag2",
-        "registry_status": "not-published",
-        "local_status": "missing",
-        "path": None,
-    },
-    {
-        "standard_id": "x.catalog",
-        "dataset": "fixture",
-        "format": "rosbag",
-        "registry_status": "catalog-only",
-        "local_status": "missing",
-        "path": None,
-    },
-    {
-        "standard_id": "x.import",
-        "dataset": "fixture",
-        "format": "rosbag",
-        "registry_status": "local-import",
-        "local_status": "missing",
-        "path": None,
-    },
-]
-
-
-class ImmediateThread:
-    def __init__(self, target, args, daemon):
-        self.target = target
-        self.args = args
-
-    def start(self):
-        self.target(*self.args)
 
 
 class ServerTest(unittest.TestCase):
     def setUp(self):
-        server.jobs.clear()
+        self.temporary = tempfile.TemporaryDirectory()
+        os.environ["IVINS_DATA_ROOT"] = self.temporary.name
+        os.environ["IVINS_DATABASE"] = str(Path(self.temporary.name) / "catalog.sqlite3")
         self.client = server.app.test_client()
-        self.headers = {"X-API-Key": "offline-test-key"}
+        self.auth = {"Authorization": "Bearer offline-test-key"}
 
-    def test_health_and_authentication(self):
-        self.assertEqual(401, self.client.get("/health").status_code)
-        response = self.client.get("/health", headers=self.headers)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual("ok", response.json["status"])
+    def tearDown(self):
+        self.temporary.cleanup()
 
-    @patch("server.run_catalog", return_value=(0, ROWS))
-    def test_registry_lookup_and_missing(self, _run):
-        response = self.client.get("/v1/datasets/x.test", headers=self.headers)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual("fixture", response.json["dataset"])
-        missing = self.client.get("/v1/datasets/unknown", headers=self.headers)
-        self.assertEqual(404, missing.status_code)
+    def create(self, data=b"artifact", dataset_id="iv.dev.4.ff.1", version="1"):
+        sha = hashlib.sha256(data).hexdigest()
+        response = self.client.post("/v1/uploads", headers=self.auth, json={
+            "dataset_id": dataset_id, "format": "rosbag", "version": version,
+            "size": len(data), "sha256": sha,
+            "metadata": {
+                "title": "iVINS Dev 4 Flight Field 01",
+                "description": "Public flight recording.",
+                "family": "ivins", "profile": "dev_04",
+                "derivable_formats": ["rosbag2"],
+            },
+        })
+        self.assertIn(response.status_code, {200, 201}, response.json)
+        return response.json["upload_id"], sha
 
-    @patch("server.run_catalog", return_value=(0, ROWS))
-    def test_catalog_only_fetch_is_rejected(self, _run):
-        response = self.client.post(
-            "/v1/datasets/x.catalog/fetch",
-            headers=self.headers,
-            json={"format": "rosbag"},
+    def test_public_reads_and_required_write_auth(self):
+        self.assertEqual(200, self.client.get("/health").status_code)
+        self.assertEqual(200, self.client.get("/v1/catalog").status_code)
+        self.assertEqual(401, self.client.post("/v1/uploads", json={}).status_code)
+
+    def test_upload_publish_snapshot_and_range_download(self):
+        data = b"0123456789"
+        upload_id, sha = self.create(data)
+        verified = self.client.put(f"/v1/uploads/{upload_id}/content", headers=self.auth, data=data)
+        self.assertEqual(200, verified.status_code, verified.json)
+        published = self.client.post(f"/v1/uploads/{upload_id}/publish", headers=self.auth)
+        self.assertEqual(200, published.status_code, published.json)
+        snapshot = self.client.get("/v1/catalog").json
+        self.assertEqual("1.0", snapshot["schema_version"])
+        self.assertEqual(sha, snapshot["datasets"][0]["artifacts"][0]["sha256"])
+        self.assertNotIn("storage_path", str(snapshot))
+        download = self.client.get(
+            "/v1/datasets/iv.dev.4.ff.1/artifacts/rosbag/1/download",
+            headers={"Range": "bytes=2-5"},
         )
-        self.assertEqual(409, response.status_code)
-        self.assertEqual("catalog-only", response.json["registry_status"])
+        self.assertEqual(206, download.status_code)
+        self.assertEqual(b"2345", download.data)
+        download.close()
 
-    def test_fetch_job_state_with_mocked_catalog(self):
-        calls = []
+    def test_checksum_mismatch_never_publishes(self):
+        upload_id, _ = self.create(b"right")
+        response = self.client.put(f"/v1/uploads/{upload_id}/content", headers=self.auth, data=b"wrong")
+        self.assertEqual(422, response.status_code)
+        self.assertEqual(409, self.client.post(f"/v1/uploads/{upload_id}/publish", headers=self.auth).status_code)
+        self.assertEqual([], self.client.get("/v1/catalog").json["datasets"])
 
-        def operation(arguments):
-            calls.append(arguments)
-            if arguments == ["status"]:
-                return 0, ROWS
-            return 0, {"standard_id": "x.test", "format": "rosbag", "sha256": "fixture"}
+    def test_immutable_version_and_idempotent_session(self):
+        upload_id, _ = self.create()
+        again, _ = self.create()
+        self.assertEqual(upload_id, again)
+        self.client.put(f"/v1/uploads/{upload_id}/content", headers=self.auth, data=b"artifact")
+        self.client.post(f"/v1/uploads/{upload_id}/publish", headers=self.auth)
+        body = {
+            "dataset_id": "iv.dev.4.ff.1", "format": "rosbag", "version": "1",
+            "size": 0, "sha256": hashlib.sha256(b"").hexdigest(), "metadata": {},
+        }
+        self.assertEqual(409, self.client.post("/v1/uploads", headers=self.auth, json=body).status_code)
 
-        with patch("server.run_catalog", side_effect=operation), patch(
-            "server.threading.Thread", ImmediateThread
-        ):
-            response = self.client.post(
-                "/v1/datasets/x.test/fetch",
-                headers=self.headers,
-                json={"format": "rosbag"},
-            )
-        self.assertEqual(202, response.status_code)
-        job_id = response.json["job_id"]
-        state = self.client.get(f"/v1/jobs/{job_id}", headers=self.headers)
-        self.assertEqual("completed", state.json["state"])
-        self.assertIn(["fetch", "x.test", "--format", "rosbag"], calls)
+    def test_private_metadata_and_traversal_are_rejected(self):
+        body = {
+            "dataset_id": "../escape", "format": "rosbag", "version": "1",
+            "size": 0, "sha256": hashlib.sha256(b"").hexdigest(), "metadata": {},
+        }
+        self.assertEqual(400, self.client.post("/v1/uploads", headers=self.auth, json=body).status_code)
+        body["dataset_id"] = "safe.id"
+        body["metadata"] = {"token": "do-not-leak"}
+        response = self.client.post("/v1/uploads", headers=self.auth, json=body)
+        self.assertEqual(400, response.status_code)
+        self.assertNotIn("do-not-leak", response.get_data(as_text=True))
+        body["metadata"] = {"links": [{"secret": "nested-do-not-leak"}]}
+        response = self.client.post("/v1/uploads", headers=self.auth, json=body)
+        self.assertEqual(400, response.status_code)
+        self.assertNotIn("nested-do-not-leak", response.get_data(as_text=True))
 
-    def test_range_download(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            artifact = root / "datasets" / "fixture" / "x.test" / "rosbag" / "data.bag"
-            artifact.parent.mkdir(parents=True)
-            artifact.write_bytes(b"0123456789")
-            previous = server.RAW_ROOT
-            server.RAW_ROOT = root
-            try:
-                with patch(
-                    "server.run_catalog",
-                    return_value=(0, {"local_status": "available", "path": str(artifact)}),
-                ):
-                    response = self.client.get(
-                        "/v1/datasets/x.test/artifacts/rosbag/download",
-                        headers={**self.headers, "Range": "bytes=2-5"},
-                    )
-                    self.assertEqual(206, response.status_code)
-                    self.assertEqual(b"2345", response.data)
-                    self.assertEqual("bytes 2-5/10", response.headers["Content-Range"])
-                    response.close()
-            finally:
-                server.RAW_ROOT = previous
-
-    def test_authenticated_local_ingest_job(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            import_root = Path(temporary).resolve()
-            source = import_root / "flight" / "data.bag"
-            source.parent.mkdir()
-            source.write_bytes(b"ingest fixture")
-            previous_root = server.IMPORT_ROOT
-            previous_host = os.environ.get("IMPORT_HOST_ROOT")
-            server.IMPORT_ROOT = import_root
-            os.environ["IMPORT_HOST_ROOT"] = str(import_root)
-            calls = []
-
-            def operation(arguments):
-                calls.append(arguments)
-                if arguments == ["status"]:
-                    return 0, ROWS
-                return 0, {"standard_id": "x.import", "import_mode": "copied"}
-
-            try:
-                with patch("server.run_catalog", side_effect=operation), patch(
-                    "server.threading.Thread", ImmediateThread
-                ):
-                    response = self.client.post(
-                        "/v1/datasets/x.import/import-local",
-                        headers=self.headers,
-                        json={"format": "rosbag", "source_path": str(source)},
-                    )
-            finally:
-                server.IMPORT_ROOT = previous_root
-                if previous_host is None:
-                    os.environ.pop("IMPORT_HOST_ROOT", None)
-                else:
-                    os.environ["IMPORT_HOST_ROOT"] = previous_host
-            self.assertEqual(202, response.status_code)
-            job_id = response.json["job_id"]
-            state = self.client.get(f"/v1/jobs/{job_id}", headers=self.headers)
-            self.assertEqual("completed", state.json["state"])
-            self.assertEqual("local-import", state.json["operation"])
-            self.assertTrue(any(call[0] == "import-local" for call in calls))
+    def test_snapshot_is_deterministic(self):
+        upload_id, _ = self.create()
+        self.client.put(f"/v1/uploads/{upload_id}/content", headers=self.auth, data=b"artifact")
+        self.client.post(f"/v1/uploads/{upload_id}/publish", headers=self.auth)
+        self.assertEqual(self.client.get("/v1/catalog").json, self.client.get("/v1/catalog").json)
 
 
 if __name__ == "__main__":

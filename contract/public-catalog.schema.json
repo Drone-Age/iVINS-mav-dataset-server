@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dataset.ivins.dev/schema/v1/public-catalog.schema.json",
+  "title": "Dataset Server v1 public catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "snapshot_version", "datasets"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "snapshot_version": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "description", "family", "artifacts"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*$"},
+          "title": {"type": "string", "minLength": 1},
+          "description": {"type": "string", "minLength": 1},
+          "family": {"type": "string", "minLength": 1},
+          "recording": {"type": "object"},
+          "profile": {"type": "string"},
+          "calibrations": {"type": "array"},
+          "links": {"type": "array"},
+          "derivable_formats": {"type": "array", "items": {"enum": ["rosbag", "rosbag2"]}},
+          "artifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["format", "version", "state", "size", "sha256", "download_url"],
+              "properties": {
+                "format": {"enum": ["rosbag", "rosbag2"]},
+                "version": {"type": "string"},
+                "state": {"const": "published"},
+                "size": {"type": "integer", "minimum": 0},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "download_url": {"type": "string", "pattern": "^/v1/"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
