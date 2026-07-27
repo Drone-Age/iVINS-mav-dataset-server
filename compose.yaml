@@ -1,0 +1,38 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ivins-mav-dataset-server:local
+    read_only: true
+    user: "10001:10001"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    environment:
+      REGISTRY_ROOT: /registry
+      RAW_ROOT: /data
+      IMPORT_ROOT: /imports
+      IMPORT_HOST_ROOT: ${IVINS_IMPORT_HOST_ROOT:?Set IVINS_IMPORT_HOST_ROOT in the local ignored .env file}
+      PORT: "8080"
+      IVINS_API_KEY: ${IVINS_API_KEY:?Set IVINS_API_KEY in the local ignored .env file}
+      IVINS_ONEDRIVE_TOKEN: ${IVINS_ONEDRIVE_TOKEN:-}
+      IVINS_GOOGLE_DRIVE_API_KEY: ${IVINS_GOOGLE_DRIVE_API_KEY:-}
+      IVINS_GOOGLE_DRIVE_TOKEN: ${IVINS_GOOGLE_DRIVE_TOKEN:-}
+    ports:
+      - "${IVINS_BIND_ADDRESS:-0.0.0.0}:${IVINS_PORT:-8080}:8080"
+    volumes:
+      - type: bind
+        source: ${IVINS_REGISTRY_HOST_ROOT:-../iVINS-mav-dataset}
+        target: /registry
+        read_only: true
+      - type: bind
+        source: ${IVINS_RAW_HOST_ROOT:?Set IVINS_RAW_HOST_ROOT in the local ignored .env file}
+        target: /data
+      - type: bind
+        source: ${IVINS_IMPORT_HOST_ROOT:?Set IVINS_IMPORT_HOST_ROOT in the local ignored .env file}
+        target: /imports
+        read_only: true

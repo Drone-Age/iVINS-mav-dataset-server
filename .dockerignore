@@ -1,0 +1,7 @@
+.git
+.env
+tests
+__pycache__
+*.py[cod]
+*.bag
+*.db3
