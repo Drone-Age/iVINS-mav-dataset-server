@@ -1,4 +1,4 @@
-FROM python:3.13-slim
+FROM python:3.13-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,10 +10,10 @@ WORKDIR /srv
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --requirement requirements.txt \
-    && groupadd --system --gid 10001 catalog \
-    && useradd --system --uid 10001 --gid catalog --home-dir /nonexistent catalog
+    && addgroup -S -g 10001 catalog \
+    && adduser -S -D -H -u 10001 -G catalog catalog
 
-COPY --chown=catalog:catalog server.py .
+COPY --chown=catalog:catalog server.py api_keys.py ./
 
 USER 10001:10001
 

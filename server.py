@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
-"""Dataset Server v1: authoritative metadata and immutable artifact storage."""
+"""Dataset Server v2: authenticated metadata and immutable artifact storage."""
 
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
+import math
 import os
-from pathlib import Path
 import re
 import sqlite3
 import tempfile
+import threading
+import time
 import uuid
+from collections import defaultdict, deque
+from contextlib import contextmanager
+from pathlib import Path
 
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, g, jsonify, request, send_file
+
+import api_keys
 
 SCHEMA_VERSION = "1.0"
+SERVER_VERSION = "2.0.0"
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -30,10 +37,6 @@ def database_path() -> Path:
     return Path(os.environ.get("IVINS_DATABASE", data_root() / "catalog.sqlite3")).resolve()
 
 
-def api_key() -> str:
-    return os.environ.get("IVINS_API_KEY", "")
-
-
 def error(code: str, message: str, status: int, **details):
     payload = {"error": {"code": code, "message": message}}
     if details:
@@ -44,8 +47,9 @@ def error(code: str, message: str, status: int, **details):
 def connect() -> sqlite3.Connection:
     path = database_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(path)
+    db = sqlite3.connect(path, timeout=30)
     db.row_factory = sqlite3.Row
+    db.execute("PRAGMA busy_timeout=30000")
     db.execute("PRAGMA foreign_keys=ON")
     db.executescript(
         """
@@ -68,23 +72,132 @@ def connect() -> sqlite3.Connection:
     return db
 
 
-def require_publisher():
-    if request.method in {"GET", "HEAD", "OPTIONS"}:
+@contextmanager
+def database():
+    db = connect()
+    try:
+        with db:
+            yield db
+    finally:
+        db.close()
+
+
+class SlidingWindowLimiter:
+    def __init__(self, window_seconds: int = 60, max_buckets: int = 10_000):
+        self.window_seconds = window_seconds
+        self.max_buckets = max_buckets
+        self.buckets: dict[str, deque[float]] = defaultdict(deque)
+        self.lock = threading.Lock()
+
+    def check(self, bucket: str, limit: int) -> tuple[bool, int]:
+        if limit <= 0:
+            return True, 0
+        now = time.monotonic()
+        cutoff = now - self.window_seconds
+        with self.lock:
+            if bucket not in self.buckets and len(self.buckets) >= self.max_buckets:
+                bucket = "overflow"
+            entries = self.buckets[bucket]
+            while entries and entries[0] <= cutoff:
+                entries.popleft()
+            if len(entries) >= limit:
+                return False, max(1, math.ceil(entries[0] + self.window_seconds - now))
+            entries.append(now)
+            return True, 0
+
+    def reset(self) -> None:
+        with self.lock:
+            self.buckets.clear()
+
+
+rate_limiter = SlidingWindowLimiter()
+
+
+def int_setting(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+    return max(0, value)
+
+
+def audit_event(event: str, **fields: object) -> None:
+    payload = {"event": event, **fields}
+    app.logger.info("security_audit %s", json.dumps(payload, sort_keys=True))
+
+
+def rate_limited(retry_after: int):
+    response, status = error("rate_limited", "request rate limit exceeded", 429)
+    response.headers["Retry-After"] = str(retry_after)
+    return response, status
+
+
+@app.before_request
+def require_api_key():
+    if request.path == "/health":
         return None
-    expected = api_key()
-    supplied = request.headers.get("Authorization", "")
-    if supplied.startswith("Bearer "):
-        supplied = supplied[7:]
-    else:
-        supplied = request.headers.get("X-API-Key", "")
-    if not expected:
-        return error("server_not_configured", "publisher credential is not configured", 503)
-    if not hmac.compare_digest(supplied, expected):
-        return error("unauthorized", "valid publisher credentials are required", 401)
+    if request.path.startswith("/v1/"):
+        if request.is_json:
+            maximum = int_setting("IVINS_MAX_JSON_BYTES", 64 * 1024)
+            if request.content_length is None:
+                return error("length_required", "Content-Length is required", 411)
+            if request.content_length > maximum:
+                return error("payload_too_large", "JSON payload exceeds configured limit", 413)
+
+        remote = request.remote_addr or "unknown"
+        allowed, retry_after = rate_limiter.check(
+            f"preauth:{remote}", int_setting("IVINS_AUTH_ATTEMPTS_PER_MINUTE", 240)
+        )
+        if not allowed:
+            audit_event("preauth_rate_limited", remote=remote, path=request.path)
+            return rate_limited(retry_after)
+        if api_keys.active_key_count() == 0:
+            audit_event("key_store_unavailable", remote=remote, path=request.path)
+            return error("server_not_configured", "no active API key is configured", 503)
+
+        authorization = request.headers.get("Authorization", "")
+        token = authorization[7:] if authorization.startswith("Bearer ") else ""
+        key_id = api_keys.verify_api_key(token)
+        if not key_id:
+            allowed, retry_after = rate_limiter.check(
+                f"invalid:{remote}", int_setting("IVINS_AUTH_FAILURES_PER_MINUTE", 20)
+            )
+            if not allowed:
+                audit_event("auth_rate_limited", remote=remote, path=request.path)
+                return rate_limited(retry_after)
+            audit_event("auth_failed", remote=remote, path=request.path)
+            response, status = error("unauthorized", "a valid API key is required", 401)
+            response.headers["WWW-Authenticate"] = "Bearer"
+            return response, status
+
+        allowed, retry_after = rate_limiter.check(
+            f"key:{key_id}", int_setting("IVINS_REQUESTS_PER_MINUTE", 120)
+        )
+        if not allowed:
+            audit_event("key_rate_limited", key_id=key_id, remote=remote, path=request.path)
+            return rate_limited(retry_after)
+        g.api_key_id = key_id
     return None
 
 
-app.before_request(require_publisher)
+@app.after_request
+def secure_response(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if response.mimetype == "application/json":
+        response.headers["Cache-Control"] = "no-store"
+    if request.path.startswith("/v1/") and request.method not in {"GET", "HEAD", "OPTIONS"}:
+        audit_event(
+            "write_request",
+            key_id=getattr(g, "api_key_id", None),
+            remote=request.remote_addr or "unknown",
+            method=request.method,
+            path=request.path,
+            status=response.status_code,
+        )
+    return response
 
 
 def validate_identity(dataset_id: object, fmt: object, version: object):
@@ -99,7 +212,7 @@ def validate_identity(dataset_id: object, fmt: object, version: object):
 
 def public_metadata(value: object) -> dict:
     if not isinstance(value, dict):
-        raise ValueError("metadata must be an object")
+        raise TypeError("metadata must be an object")
     forbidden = {"credential", "token", "secret", "storage_path", "internal_path", "private"}
     def contains_forbidden(item: object) -> bool:
         if isinstance(item, dict):
@@ -126,7 +239,12 @@ def artifact_file(dataset_id: str, fmt: str, version: str) -> Path:
 
 @app.get("/health")
 def health():
-    return jsonify(status="ok", schema_version=SCHEMA_VERSION)
+    return jsonify(
+        status="ok",
+        schema_version=SCHEMA_VERSION,
+        server_version=SERVER_VERSION,
+        key_store_ready=api_keys.active_key_count() > 0,
+    )
 
 
 def snapshot_payload(db: sqlite3.Connection) -> dict:
@@ -170,7 +288,7 @@ def snapshot_payload(db: sqlite3.Connection) -> dict:
 
 @app.get("/v1/catalog")
 def catalog():
-    with connect() as db:
+    with database() as db:
         return jsonify(snapshot_payload(db))
 
 
@@ -184,15 +302,17 @@ def create_upload():
     size, sha = body.get("size"), body.get("sha256")
     if not isinstance(size, int) or size < 0:
         return error("invalid_request", "size must be a non-negative integer", 400)
+    if size > int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3):
+        return error("payload_too_large", "artifact exceeds configured upload limit", 413)
     if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{64}", sha):
         return error("invalid_request", "sha256 must be 64 lowercase hex characters", 400)
     try:
         metadata = public_metadata(body.get("metadata", {}))
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         return error("invalid_request", str(exc), 400)
     upload_id = uuid.uuid4().hex
     try:
-        with connect() as db:
+        with database() as db:
             if db.execute(
                 "SELECT 1 FROM artifacts WHERE dataset_id=? AND format=? AND version=?",
                 (dataset_id, fmt, version),
@@ -217,8 +337,8 @@ def create_upload():
 
 @app.put("/v1/uploads/<upload_id>/content")
 def upload_content(upload_id: str):
-    limit = int(os.environ.get("IVINS_MAX_UPLOAD_BYTES", str(50 * 1024**3)))
-    with connect() as db:
+    limit = int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3)
+    with database() as db:
         row = db.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
         if not row:
             return error("not_found", "unknown upload", 404)
@@ -226,6 +346,15 @@ def upload_content(upload_id: str):
             return error("immutable_version", "upload is already published", 409)
         if row["expected_size"] > limit:
             return error("payload_too_large", "artifact exceeds configured upload limit", 413)
+        if request.content_length is None:
+            return error("length_required", "Content-Length is required", 411)
+        if request.content_length > limit:
+            return error("payload_too_large", "upload limit exceeded", 413)
+        if request.content_length != row["expected_size"]:
+            return error(
+                "size_mismatch", "Content-Length does not match declared artifact size", 422,
+                expected_size=row["expected_size"], content_length=request.content_length,
+            )
         staging = data_root() / "staging"
         staging.mkdir(parents=True, exist_ok=True)
         fd, temporary = tempfile.mkstemp(prefix=f"{upload_id}.", dir=staging)
@@ -269,7 +398,7 @@ def upload_content(upload_id: str):
 
 @app.post("/v1/uploads/<upload_id>/publish")
 def publish(upload_id: str):
-    with connect() as db:
+    with database() as db:
         db.execute("BEGIN IMMEDIATE")
         row = db.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
         if not row:
@@ -306,7 +435,7 @@ def publish(upload_id: str):
 def download(dataset_id: str, fmt: str, version: str):
     if validate_identity(dataset_id, fmt, version):
         return error("not_found", "unknown artifact", 404)
-    with connect() as db:
+    with database() as db:
         row = db.execute(
             "SELECT * FROM artifacts WHERE dataset_id=? AND format=? AND version=?",
             (dataset_id, fmt, version),
@@ -322,9 +451,12 @@ def download(dataset_id: str, fmt: str, version: str):
 
 
 def main() -> None:
-    if not api_key():
-        raise SystemExit("IVINS_API_KEY is required for publisher operations")
     connect().close()
+    api_keys.connect().close()
+    if api_keys.active_key_count() == 0:
+        app.logger.warning(
+            "No active API key. /v1 endpoints will return 503; create one with api_keys.py."
+        )
     app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "8080")))
 
 
