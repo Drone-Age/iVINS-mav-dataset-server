@@ -17,12 +17,12 @@ from collections import defaultdict, deque
 from contextlib import contextmanager
 from pathlib import Path
 
-from flask import Flask, g, jsonify, request, send_file
+from flask import Flask, g, jsonify, render_template, request, send_file
 
 import api_keys
 
 SCHEMA_VERSION = "1.0"
-SERVER_VERSION = "2.0.0"
+SERVER_VERSION = "2.1.0"
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -35,6 +35,10 @@ def data_root() -> Path:
 
 def database_path() -> Path:
     return Path(os.environ.get("IVINS_DATABASE", data_root() / "catalog.sqlite3")).resolve()
+
+
+def bag_root() -> Path:
+    return Path(os.environ.get("IVINS_BAG_ROOT", data_root() / "bags")).resolve()
 
 
 def error(code: str, message: str, status: int, **details):
@@ -136,7 +140,8 @@ def rate_limited(retry_after: int):
 def require_api_key():
     if request.path == "/health":
         return None
-    if request.path.startswith("/v1/"):
+    protected = request.path.startswith("/v1/") or request.path.startswith("/admin/api/")
+    if protected:
         if request.is_json:
             maximum = int_setting("IVINS_MAX_JSON_BYTES", 64 * 1024)
             if request.content_length is None:
@@ -157,8 +162,8 @@ def require_api_key():
 
         authorization = request.headers.get("Authorization", "")
         token = authorization[7:] if authorization.startswith("Bearer ") else ""
-        key_id = api_keys.verify_api_key(token)
-        if not key_id:
+        identity = api_keys.authenticate_api_key(token)
+        if not identity:
             allowed, retry_after = rate_limiter.check(
                 f"invalid:{remote}", int_setting("IVINS_AUTH_FAILURES_PER_MINUTE", 20)
             )
@@ -171,24 +176,54 @@ def require_api_key():
             return response, status
 
         allowed, retry_after = rate_limiter.check(
-            f"key:{key_id}", int_setting("IVINS_REQUESTS_PER_MINUTE", 120)
+            f"key:{identity.key_id}", int_setting("IVINS_REQUESTS_PER_MINUTE", 120)
         )
         if not allowed:
-            audit_event("key_rate_limited", key_id=key_id, remote=remote, path=request.path)
+            audit_event(
+                "key_rate_limited", key_id=identity.key_id, remote=remote, path=request.path
+            )
             return rate_limited(retry_after)
-        g.api_key_id = key_id
+        if request.path.startswith("/admin/api/") and identity.role != "admin":
+            audit_event(
+                "admin_forbidden",
+                key_id=identity.key_id,
+                role=identity.role,
+                remote=remote,
+                path=request.path,
+            )
+            return error("forbidden", "an admin API key is required", 403)
+        if (
+            request.path.startswith("/v1/")
+            and request.method not in {"GET", "HEAD", "OPTIONS"}
+            and identity.role not in {"admin", "publisher"}
+        ):
+            return error("forbidden", "a publisher or admin API key is required", 403)
+        g.api_key_id = identity.key_id
+        g.api_key_role = identity.role
     return None
 
 
 @app.after_request
 def secure_response(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    if request.path == "/admin" or request.path.startswith("/static/admin"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; script-src 'self'; style-src 'self'; "
+            "connect-src 'self'; img-src 'self'; frame-ancestors 'none'"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["X-Frame-Options"] = "DENY"
     if response.mimetype == "application/json":
         response.headers["Cache-Control"] = "no-store"
-    if request.path.startswith("/v1/") and request.method not in {"GET", "HEAD", "OPTIONS"}:
+    if (
+        request.path.startswith(("/v1/", "/admin/api/"))
+        and request.method not in {"GET", "HEAD", "OPTIONS"}
+    ):
         audit_event(
             "write_request",
             key_id=getattr(g, "api_key_id", None),
@@ -234,7 +269,7 @@ def public_metadata(value: object) -> dict:
 
 def artifact_file(dataset_id: str, fmt: str, version: str) -> Path:
     suffix = ".bag" if fmt == "rosbag" else ".zip"
-    return data_root() / "artifacts" / dataset_id / fmt / f"{version}{suffix}"
+    return bag_root() / f"{dataset_id}__{fmt}__{version}{suffix}"
 
 
 @app.get("/health")
@@ -245,6 +280,11 @@ def health():
         server_version=SERVER_VERSION,
         key_store_ready=api_keys.active_key_count() > 0,
     )
+
+
+@app.get("/admin")
+def admin_page():
+    return render_template("admin.html", server_version=SERVER_VERSION)
 
 
 def snapshot_payload(db: sqlite3.Connection) -> dict:
@@ -442,12 +482,468 @@ def download(dataset_id: str, fmt: str, version: str):
         ).fetchone()
     if not row:
         return error("not_found", "unknown published artifact", 404)
-    path = Path(row["storage_path"]).resolve()
-    try:
-        path.relative_to((data_root() / "artifacts").resolve())
-    except ValueError:
+    stored_path = Path(row["storage_path"])
+    path = stored_path.resolve()
+    if stored_path.is_symlink() or path.parent != bag_root().resolve():
         return error("storage_error", "artifact storage path is invalid", 500)
     return send_file(path, as_attachment=True, conditional=True, etag=row["sha256"])
+
+
+def pagination() -> tuple[int, int, int]:
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+        per_page = min(100, max(1, int(request.args.get("per_page", "50"))))
+    except ValueError:
+        page, per_page = 1, 50
+    return page, per_page, (page - 1) * per_page
+
+
+def direct_bag_path(filename: object) -> Path | None:
+    if not isinstance(filename, str) or not filename or Path(filename).name != filename:
+        return None
+    root = bag_root().resolve()
+    candidate = root / filename
+    if candidate.is_symlink():
+        return None
+    resolved = candidate.resolve()
+    return resolved if resolved.parent == root else None
+
+
+def artifact_admin_item(row: sqlite3.Row) -> dict[str, object]:
+    stored_path = Path(row["storage_path"])
+    symlink = stored_path.is_symlink()
+    path = stored_path.resolve()
+    root = bag_root().resolve()
+    is_flat = path.parent == root and not symlink
+    return {
+        "dataset_id": row["dataset_id"],
+        "format": row["format"],
+        "version": row["version"],
+        "size": row["size"],
+        "sha256": row["sha256"],
+        "metadata": json.loads(row["metadata"]),
+        "filename": path.name,
+        "file_exists": path.is_file(),
+        "flat_storage": is_flat,
+        "published_at": row["published_at"],
+    }
+
+
+def file_digest(path: Path) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+            size += len(chunk)
+    return size, digest.hexdigest()
+
+
+def copy_file_exclusive(source: Path, target: Path) -> tuple[int, str]:
+    digest = hashlib.sha256()
+    size = 0
+    created = False
+    try:
+        with source.open("rb") as reader, target.open("xb") as writer:
+            created = True
+            while chunk := reader.read(1024 * 1024):
+                writer.write(chunk)
+                digest.update(chunk)
+                size += len(chunk)
+            writer.flush()
+            os.fsync(writer.fileno())
+    except Exception:
+        if created:
+            target.unlink(missing_ok=True)
+        raise
+    return size, digest.hexdigest()
+
+
+@app.get("/admin/api/session")
+def admin_session():
+    return jsonify(
+        key_id=g.api_key_id,
+        role=g.api_key_role,
+        server_version=SERVER_VERSION,
+    )
+
+
+@app.get("/admin/api/overview")
+def admin_overview():
+    root = bag_root()
+    root.mkdir(parents=True, exist_ok=True)
+    with database() as db:
+        uploads = db.execute("SELECT COUNT(*) AS count FROM uploads").fetchone()["count"]
+        artifacts = db.execute("SELECT COUNT(*) AS count FROM artifacts").fetchone()["count"]
+        storage_rows = db.execute("SELECT storage_path FROM artifacts").fetchall()
+    bag_files = [
+        item for item in root.iterdir()
+        if item.is_file() and not item.is_symlink() and item.suffix.lower() in {".bag", ".zip"}
+    ]
+    return jsonify(
+        server_version=SERVER_VERSION,
+        schema_version=SCHEMA_VERSION,
+        active_keys=api_keys.active_key_count(),
+        uploads=uploads,
+        artifacts=artifacts,
+        bag_files=len(bag_files),
+        bag_bytes=sum(item.stat().st_size for item in bag_files),
+        missing_files=sum(not Path(row["storage_path"]).is_file() for row in storage_rows),
+        legacy_files=sum(
+            Path(row["storage_path"]).resolve().parent != root.resolve()
+            or Path(row["storage_path"]).is_symlink()
+            for row in storage_rows
+        ),
+        bag_root=str(root),
+    )
+
+
+@app.route("/admin/api/keys", methods=["GET", "POST"])
+def admin_keys():
+    if request.method == "GET":
+        keys = api_keys.list_api_keys()
+        page, per_page, offset = pagination()
+        return jsonify(
+            items=keys[offset:offset + per_page],
+            total=len(keys),
+            page=page,
+            per_page=per_page,
+        )
+    body = request.get_json(silent=True) or {}
+    try:
+        key_id, token = api_keys.create_api_key(body.get("name", ""), body.get("role", "reader"))
+    except ValueError as exc:
+        return error("invalid_request", str(exc), 400)
+    audit_event(
+        "admin_key_created",
+        actor_key_id=g.api_key_id,
+        created_key_id=key_id,
+        role=body.get("role", "reader"),
+    )
+    return jsonify(
+        key_id=key_id,
+        role=body.get("role", "reader"),
+        api_key=token,
+        warning="The API key is shown once and is not stored in plaintext.",
+    ), 201
+
+
+@app.post("/admin/api/keys/<key_id>/revoke")
+def admin_revoke_key(key_id: str):
+    outcome = api_keys.revoke_api_key_guarded(key_id)
+    if outcome == "not_found":
+        return error("not_found", "active key not found", 404)
+    if outcome == "last_admin":
+        return error("last_admin", "the last active admin key cannot be revoked", 409)
+    audit_event("admin_key_revoked", actor_key_id=g.api_key_id, revoked_key_id=key_id)
+    return jsonify(revoked=key_id)
+
+
+@app.get("/admin/api/uploads")
+def admin_uploads():
+    page, per_page, offset = pagination()
+    with database() as db:
+        total = db.execute("SELECT COUNT(*) AS count FROM uploads").fetchone()["count"]
+        rows = db.execute(
+            "SELECT id,dataset_id,format,version,expected_size,expected_sha256,"
+            "metadata,state,actual_size,actual_sha256,created_at FROM uploads "
+            "ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+            (per_page, offset),
+        ).fetchall()
+    items = []
+    for row in rows:
+        item = dict(row)
+        item["metadata"] = json.loads(item["metadata"])
+        items.append(item)
+    return jsonify(items=items, total=total, page=page, per_page=per_page)
+
+
+@app.delete("/admin/api/uploads/<upload_id>")
+def admin_delete_upload(upload_id: str):
+    with database() as db:
+        row = db.execute("SELECT state,staged_path FROM uploads WHERE id=?", (upload_id,)).fetchone()
+        if not row:
+            return error("not_found", "upload not found", 404)
+        if row["state"] == "published":
+            return error("immutable_version", "published uploads cannot be deleted", 409)
+        staged_path = row["staged_path"]
+        db.execute("DELETE FROM uploads WHERE id=?", (upload_id,))
+    if staged_path:
+        staged_source = Path(staged_path)
+        if staged_source.is_symlink():
+            audit_event("unsafe_staging_path_ignored", upload_id=upload_id)
+            staged_source = None
+        staged = staged_source.resolve() if staged_source else None
+    else:
+        staged = None
+    if staged:
+        try:
+            staged.relative_to((data_root() / "staging").resolve())
+        except ValueError:
+            audit_event("unsafe_staging_path_ignored", upload_id=upload_id)
+        else:
+            staged.unlink(missing_ok=True)
+    audit_event("admin_upload_deleted", actor_key_id=g.api_key_id, upload_id=upload_id)
+    return jsonify(deleted=upload_id)
+
+
+@app.get("/admin/api/artifacts")
+def admin_artifacts():
+    page, per_page, offset = pagination()
+    with database() as db:
+        total = db.execute("SELECT COUNT(*) AS count FROM artifacts").fetchone()["count"]
+        rows = db.execute(
+            "SELECT * FROM artifacts ORDER BY published_at DESC,dataset_id,format,version "
+            "LIMIT ? OFFSET ?",
+            (per_page, offset),
+        ).fetchall()
+    return jsonify(
+        items=[artifact_admin_item(row) for row in rows],
+        total=total,
+        page=page,
+        per_page=per_page,
+    )
+
+
+@app.patch("/admin/api/artifacts/<dataset_id>/<fmt>/<version>")
+def admin_update_artifact(dataset_id: str, fmt: str, version: str):
+    if validate_identity(dataset_id, fmt, version):
+        return error("not_found", "artifact not found", 404)
+    body = request.get_json(silent=True) or {}
+    try:
+        metadata = public_metadata(body.get("metadata"))
+    except (TypeError, ValueError) as exc:
+        return error("invalid_request", str(exc), 400)
+    with database() as db:
+        result = db.execute(
+            "UPDATE artifacts SET metadata=? WHERE dataset_id=? AND format=? AND version=?",
+            (json.dumps(metadata, sort_keys=True), dataset_id, fmt, version),
+        )
+    if result.rowcount != 1:
+        return error("not_found", "artifact not found", 404)
+    audit_event(
+        "admin_artifact_updated",
+        actor_key_id=g.api_key_id,
+        dataset_id=dataset_id,
+        format=fmt,
+        version=version,
+    )
+    return jsonify(metadata=metadata)
+
+
+@app.delete("/admin/api/artifacts/<dataset_id>/<fmt>/<version>")
+def admin_delete_artifact(dataset_id: str, fmt: str, version: str):
+    if validate_identity(dataset_id, fmt, version):
+        return error("not_found", "artifact not found", 404)
+    body = request.get_json(silent=True) or {}
+    delete_file = body.get("delete_file") is True
+    with database() as db:
+        row = db.execute(
+            "SELECT storage_path FROM artifacts WHERE dataset_id=? AND format=? AND version=?",
+            (dataset_id, fmt, version),
+        ).fetchone()
+    if not row:
+        return error("not_found", "artifact not found", 404)
+    stored_path = Path(row["storage_path"])
+    symlink = stored_path.is_symlink()
+    path = stored_path.resolve()
+    quarantine = None
+    if delete_file and path.exists():
+        if path.parent != bag_root().resolve() or symlink:
+            return error("storage_error", "artifact is outside the flat BAG directory", 409)
+        quarantine = path.with_name(f".deleting-{uuid.uuid4().hex}")
+        os.replace(path, quarantine)
+    try:
+        with database() as db:
+            result = db.execute(
+                "DELETE FROM artifacts WHERE dataset_id=? AND format=? AND version=?",
+                (dataset_id, fmt, version),
+            )
+        if result.rowcount != 1:
+            raise RuntimeError("artifact disappeared during deletion")
+    except Exception:
+        if quarantine and quarantine.exists():
+            os.replace(quarantine, path)
+        raise
+    if quarantine:
+        quarantine.unlink(missing_ok=True)
+    audit_event(
+        "admin_artifact_deleted",
+        actor_key_id=g.api_key_id,
+        dataset_id=dataset_id,
+        format=fmt,
+        version=version,
+        file_deleted=delete_file,
+    )
+    return jsonify(deleted={"dataset_id": dataset_id, "format": fmt, "version": version})
+
+
+@app.get("/admin/api/bags")
+def admin_bags():
+    root = bag_root()
+    root.mkdir(parents=True, exist_ok=True)
+    with database() as db:
+        registered_rows = db.execute(
+            "SELECT dataset_id,format,version,storage_path FROM artifacts"
+        ).fetchall()
+    registered = {
+        str(Path(row["storage_path"]).resolve()): {
+            "dataset_id": row["dataset_id"], "format": row["format"], "version": row["version"]
+        }
+        for row in registered_rows
+    }
+    items = []
+    for path in sorted(root.iterdir(), key=lambda item: item.name.lower()):
+        if path.is_symlink() or not path.is_file() or path.suffix.lower() not in {".bag", ".zip"}:
+            continue
+        stat = path.stat()
+        items.append({
+            "filename": path.name,
+            "size": stat.st_size,
+            "modified_at": stat.st_mtime,
+            "registered": registered.get(str(path.resolve())),
+        })
+    page, per_page, offset = pagination()
+    return jsonify(
+        items=items[offset:offset + per_page],
+        total=len(items),
+        page=page,
+        per_page=per_page,
+    )
+
+
+@app.post("/admin/api/bags/migrate")
+def admin_migrate_bags():
+    root = bag_root().resolve()
+    legacy_root = data_root().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    with database() as db:
+        rows = db.execute(
+            "SELECT dataset_id,format,version,size,sha256,storage_path FROM artifacts "
+            "ORDER BY dataset_id,format,version"
+        ).fetchall()
+
+    migrated = []
+    skipped = []
+    for row in rows:
+        stored = Path(row["storage_path"])
+        source = stored.resolve()
+        identity = {
+            "dataset_id": row["dataset_id"],
+            "format": row["format"],
+            "version": row["version"],
+        }
+        if source.parent == root and not stored.is_symlink():
+            continue
+        try:
+            source.relative_to(legacy_root)
+        except ValueError:
+            skipped.append({**identity, "reason": "source_outside_data_root"})
+            continue
+        if stored.is_symlink():
+            skipped.append({**identity, "reason": "symlink_not_allowed"})
+            continue
+        if not source.is_file():
+            skipped.append({**identity, "reason": "source_missing"})
+            continue
+        target = artifact_file(row["dataset_id"], row["format"], row["version"])
+        try:
+            actual_size, actual_sha256 = copy_file_exclusive(source, target)
+        except FileExistsError:
+            skipped.append({**identity, "reason": "target_exists"})
+            continue
+        except OSError:
+            skipped.append({**identity, "reason": "copy_failed"})
+            continue
+        if actual_size != row["size"] or actual_sha256 != row["sha256"]:
+            target.unlink(missing_ok=True)
+            skipped.append({**identity, "reason": "integrity_mismatch"})
+            continue
+        try:
+            with database() as db:
+                result = db.execute(
+                    "UPDATE artifacts SET storage_path=? "
+                    "WHERE dataset_id=? AND format=? AND version=? AND storage_path=?",
+                    (
+                        str(target), row["dataset_id"], row["format"], row["version"],
+                        row["storage_path"],
+                    ),
+                )
+                if result.rowcount != 1:
+                    raise RuntimeError("artifact changed during migration")
+        except Exception:
+            target.unlink(missing_ok=True)
+            raise
+        warning = None
+        try:
+            source.unlink()
+        except OSError:
+            warning = "legacy_source_retained"
+        migrated.append({**identity, "filename": target.name, "warning": warning})
+
+    audit_event(
+        "admin_bags_migrated",
+        actor_key_id=g.api_key_id,
+        migrated=len(migrated),
+        skipped=len(skipped),
+    )
+    return jsonify(migrated=migrated, skipped=skipped)
+
+
+@app.post("/admin/api/bags/register")
+def admin_register_bag():
+    body = request.get_json(silent=True) or {}
+    filename = body.get("filename")
+    path = direct_bag_path(filename)
+    if not path or not path.is_file():
+        return error("not_found", "BAG file not found in the flat storage directory", 404)
+    dataset_id, fmt, version = body.get("dataset_id"), body.get("format"), body.get("version")
+    problem = validate_identity(dataset_id, fmt, version)
+    if problem:
+        return error("invalid_request", problem, 400)
+    expected_suffix = ".bag" if fmt == "rosbag" else ".zip"
+    if path.suffix.lower() != expected_suffix:
+        return error("invalid_request", f"{fmt} files must use {expected_suffix}", 400)
+    try:
+        metadata = public_metadata(body.get("metadata", {}))
+    except (TypeError, ValueError) as exc:
+        return error("invalid_request", str(exc), 400)
+    size, digest = file_digest(path)
+    if size > int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3):
+        return error("payload_too_large", "BAG file exceeds configured limit", 413)
+    try:
+        with database() as db:
+            if db.execute(
+                "SELECT 1 FROM artifacts WHERE storage_path=?", (str(path),)
+            ).fetchone():
+                return error("storage_conflict", "BAG file is already registered", 409)
+            db.execute(
+                "INSERT INTO artifacts "
+                "(dataset_id,format,version,size,sha256,metadata,storage_path) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    dataset_id, fmt, version, size, digest,
+                    json.dumps(metadata, sort_keys=True), str(path),
+                ),
+            )
+    except sqlite3.IntegrityError:
+        return error("immutable_version", "artifact identity already exists", 409)
+    audit_event(
+        "admin_bag_registered",
+        actor_key_id=g.api_key_id,
+        filename=filename,
+        dataset_id=dataset_id,
+        format=fmt,
+        version=version,
+    )
+    return jsonify(
+        dataset_id=dataset_id,
+        format=fmt,
+        version=version,
+        filename=filename,
+        size=size,
+        sha256=digest,
+    ), 201
 
 
 def main() -> None:

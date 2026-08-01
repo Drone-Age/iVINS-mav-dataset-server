@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ivins-mav-dataset-server:2.0.0
+    image: ivins-mav-dataset-server:2.1.0
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
@@ -17,6 +17,7 @@ services:
       - /tmp:size=64m,mode=1777
     environment:
       IVINS_DATA_ROOT: /data
+      IVINS_BAG_ROOT: /data/bags
       IVINS_MAX_UPLOAD_BYTES: ${IVINS_MAX_UPLOAD_BYTES:-53687091200}
       IVINS_MAX_JSON_BYTES: ${IVINS_MAX_JSON_BYTES:-65536}
       IVINS_REQUESTS_PER_MINUTE: ${IVINS_REQUESTS_PER_MINUTE:-120}

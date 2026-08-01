@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>iVINS Dataset Server — Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+  <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+</head>
+<body>
+  <section class="login-shell" id="loginShell" aria-labelledby="loginTitle">
+    <div class="login-card">
+      <div class="brand-mark" aria-hidden="true">iV</div>
+      <p class="eyebrow">Dataset Server {{ server_version }}</p>
+      <h1 id="loginTitle">Адміністративний доступ</h1>
+      <p class="muted">Введіть API-ключ із роллю <strong>admin</strong>. Ключ зберігається лише в пам’яті цієї вкладки.</p>
+      <form id="loginForm" class="stack">
+        <label for="apiKeyInput">API-ключ</label>
+        <input id="apiKeyInput" name="apiKey" type="password" autocomplete="off" spellcheck="false" required>
+        <button class="button primary" type="submit">Увійти</button>
+      </form>
+      <p class="form-message" id="loginMessage" role="alert"></p>
+      <p class="http-warning">HTTP не шифрує ключ. Використовуйте довірену мережу, VPN або захищену зовнішню маршрутизацію.</p>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <header class="topbar">
+      <div class="brand-row">
+        <div class="brand-mark small" aria-hidden="true">iV</div>
+        <div>
+          <p class="eyebrow">iVINS</p>
+          <h1>Dataset Server</h1>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="status-pill"><span class="status-dot"></span><span id="serverStatus">Перевірка…</span></span>
+        <span class="key-pill" id="currentKey"></span>
+        <button class="button ghost" id="refreshButton" type="button">Оновити</button>
+        <button class="button ghost danger-text" id="logoutButton" type="button">Вийти</button>
+      </div>
+    </header>
+
+    <nav class="tabbar" aria-label="Адміністративні розділи">
+      <button class="tab active" data-view="overview" type="button">Огляд</button>
+      <button class="tab" data-view="keys" type="button">Ключі</button>
+      <button class="tab" data-view="uploads" type="button">Uploads</button>
+      <button class="tab" data-view="artifacts" type="button">Artifacts</button>
+      <button class="tab" data-view="bags" type="button">BAG-файли</button>
+    </nav>
+
+    <main class="content">
+      <section class="view active" id="view-overview" aria-labelledby="overviewTitle">
+        <div class="section-heading">
+          <div><p class="eyebrow">Стан системи</p><h2 id="overviewTitle">Огляд</h2></div>
+        </div>
+        <div class="metric-grid">
+          <article class="metric"><span>Активні ключі</span><strong id="metricKeys">—</strong></article>
+          <article class="metric"><span>Uploads</span><strong id="metricUploads">—</strong></article>
+          <article class="metric"><span>Artifacts</span><strong id="metricArtifacts">—</strong></article>
+          <article class="metric"><span>BAG-файли</span><strong id="metricBags">—</strong></article>
+          <article class="metric"><span>Обсяг BAG</span><strong id="metricBytes">—</strong></article>
+          <article class="metric warning"><span>Відсутні файли</span><strong id="metricMissing">—</strong></article>
+          <article class="metric warning"><span>Legacy storage</span><strong id="metricLegacy">—</strong></article>
+        </div>
+        <article class="panel storage-panel">
+          <div><p class="panel-label">Єдиний каталог BAG</p><code id="bagRoot">—</code></div>
+          <div><p class="panel-label">Версія сервера</p><strong id="serverVersion">—</strong></div>
+        </article>
+      </section>
+
+      <section class="view" id="view-keys" aria-labelledby="keysTitle" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">Доступ</p><h2 id="keysTitle">API-ключі</h2></div>
+        </div>
+        <form class="panel form-grid" id="createKeyForm">
+          <div><label for="keyName">Назва</label><input id="keyName" required maxlength="64" placeholder="publishing-agent"></div>
+          <div><label for="keyRole">Роль</label><select id="keyRole"><option value="reader">reader</option><option value="publisher">publisher</option><option value="admin">admin</option></select></div>
+          <button class="button primary align-end" type="submit">Створити ключ</button>
+        </form>
+        <div class="table-panel"><table><thead><tr><th>ID</th><th>Назва</th><th>Роль</th><th>Створено</th><th>Статус</th><th></th></tr></thead><tbody id="keysBody"></tbody></table></div>
+      </section>
+
+      <section class="view" id="view-uploads" aria-labelledby="uploadsTitle" hidden>
+        <div class="section-heading"><div><p class="eyebrow">Чернетки й перевірка</p><h2 id="uploadsTitle">Uploads</h2></div></div>
+        <div class="table-panel"><table><thead><tr><th>ID</th><th>Dataset</th><th>Формат</th><th>Версія</th><th>Розмір</th><th>Стан</th><th>Створено</th><th></th></tr></thead><tbody id="uploadsBody"></tbody></table></div>
+      </section>
+
+      <section class="view" id="view-artifacts" aria-labelledby="artifactsTitle" hidden>
+        <div class="section-heading"><div><p class="eyebrow">Опубліковані дані</p><h2 id="artifactsTitle">Artifacts</h2></div></div>
+        <div class="table-panel"><table><thead><tr><th>Dataset</th><th>Формат</th><th>Версія</th><th>Файл</th><th>Розмір</th><th>SHA-256</th><th>Metadata</th><th></th></tr></thead><tbody id="artifactsBody"></tbody></table></div>
+      </section>
+
+      <section class="view" id="view-bags" aria-labelledby="bagsTitle" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">Пласке файлове сховище</p><h2 id="bagsTitle">BAG-файли</h2></div>
+          <button class="button" id="migrateBagsButton" type="button">Мігрувати legacy storage</button>
+        </div>
+        <form class="panel register-grid" id="registerBagForm">
+          <div class="wide"><label for="bagFilename">Файл</label><input id="bagFilename" required readonly placeholder="Оберіть orphan-файл у таблиці"></div>
+          <div><label for="bagDataset">Dataset ID</label><input id="bagDataset" required placeholder="iv.dev.4.ff.1"></div>
+          <div><label for="bagFormat">Формат</label><select id="bagFormat"><option value="rosbag">rosbag (.bag)</option><option value="rosbag2">rosbag2 (.zip)</option></select></div>
+          <div><label for="bagVersion">Версія</label><input id="bagVersion" required placeholder="1"></div>
+          <div class="wide"><label for="bagMetadata">Public metadata (JSON)</label><textarea id="bagMetadata" rows="4">{}</textarea></div>
+          <button class="button primary align-end" type="submit">Зареєструвати</button>
+        </form>
+        <div class="table-panel"><table><thead><tr><th>Файл</th><th>Розмір</th><th>Змінено</th><th>Стан</th><th>Artifact</th><th></th></tr></thead><tbody id="bagsBody"></tbody></table></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="secretDialog">
+    <form method="dialog" class="dialog-card">
+      <p class="eyebrow">Показується один раз</p>
+      <h2>Новий API-ключ</h2>
+      <p class="muted">Збережіть ключ зараз. Сервер зберіг лише digest і не зможе відновити секрет.</p>
+      <code class="secret-value" id="newKeyValue"></code>
+      <div class="dialog-actions"><button class="button primary" id="copyKeyButton" type="button">Копіювати</button><button class="button ghost" value="close">Закрити</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="metadataDialog">
+    <form class="dialog-card" id="metadataForm">
+      <p class="eyebrow">Artifact metadata</p>
+      <h2 id="metadataTitle">Редагування</h2>
+      <label for="metadataValue">Public metadata (JSON)</label>
+      <textarea id="metadataValue" rows="12" required></textarea>
+      <div class="dialog-actions"><button class="button primary" type="submit">Зберегти</button><button class="button ghost" id="cancelMetadata" type="button">Скасувати</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
