@@ -3,6 +3,8 @@
 let apiKey = "";
 let activeView = "overview";
 let editingArtifact = null;
+let editingDataset = null;
+let mirrorDataset = null;
 
 const byId = (id) => document.getElementById(id);
 
@@ -105,6 +107,8 @@ async function loadOverview() {
   byId("metricKeys").textContent = data.active_keys;
   byId("metricUploads").textContent = data.uploads;
   byId("metricArtifacts").textContent = data.artifacts;
+  byId("metricDatasets").textContent = data.datasets;
+  byId("metricMirrors").textContent = data.mirrors;
   byId("metricBags").textContent = data.bag_files;
   byId("metricBytes").textContent = formatBytes(data.bag_bytes);
   byId("metricMissing").textContent = data.missing_files;
@@ -112,6 +116,121 @@ async function loadOverview() {
   byId("bagRoot").textContent = data.bag_root;
   byId("serverVersion").textContent = data.server_version;
   byId("serverStatus").textContent = `Healthy · ${data.server_version}`;
+}
+
+async function loadDatasets() {
+  const data = await api("/admin/api/datasets?per_page=100");
+  const body = byId("datasetsBody");
+  if (!data.items.length) return tableEmpty(body, 8, "Datasets відсутні");
+  const rows = data.items.map((item) => {
+    const row = document.createElement("tr");
+    row.append(make("td", item.id, "hash"), make("td", item.family), make("td", item.name), make("td", item.measurement || "—"));
+    const mirrors = make("td", null, "row-actions");
+    item.mirrors.forEach((mirror) => {
+      mirrors.append(badge(`${mirror.format}: ${mirror.label}`, mirror.verified ? "good" : "warn"));
+      mirrors.append(button("×", "danger", () => deleteMirror(mirror)));
+    });
+    if (!item.mirrors.length) mirrors.append(make("span", "—", "empty"));
+    row.append(mirrors, make("td", item.local_artifacts));
+    const visibility = document.createElement("td");
+    visibility.append(badge(item.visible ? "public" : "hidden", item.visible ? "good" : "warn"));
+    row.append(visibility);
+    const actions = make("td", null, "row-actions");
+    actions.append(
+      button("Редагувати", "", () => openDataset(item)),
+      button("Mirror", "", () => openMirror(item)),
+      button("Видалити", "danger", () => deleteDataset(item)),
+    );
+    row.append(actions);
+    return row;
+  });
+  body.replaceChildren(...rows);
+}
+
+function openDataset(item = null) {
+  editingDataset = item;
+  byId("datasetDialogTitle").textContent = item ? `Редагування ${item.id}` : "Новий Dataset";
+  byId("datasetId").value = item?.id || "";
+  byId("datasetId").disabled = Boolean(item);
+  byId("datasetFamily").value = item?.family || "";
+  byId("datasetName").value = item?.name || "";
+  byId("datasetMeasurement").value = item?.measurement || "";
+  byId("datasetDescription").value = item?.description || "";
+  byId("datasetHomepage").value = item?.homepage_url || "";
+  byId("datasetGroundTruth").value = item?.ground_truth_url || "";
+  byId("datasetConfig").value = item?.config_url || "";
+  byId("datasetVisible").checked = item ? item.visible : true;
+  byId("datasetDialog").showModal();
+}
+
+async function saveDataset(event) {
+  event.preventDefault();
+  const body = {
+    family: byId("datasetFamily").value.trim(),
+    name: byId("datasetName").value.trim(),
+    measurement: byId("datasetMeasurement").value.trim(),
+    description: byId("datasetDescription").value.trim(),
+    homepage_url: byId("datasetHomepage").value.trim(),
+    ground_truth_url: byId("datasetGroundTruth").value.trim(),
+    config_url: byId("datasetConfig").value.trim(),
+    visible: byId("datasetVisible").checked,
+  };
+  try {
+    if (editingDataset) {
+      await api(`/admin/api/datasets/${encodeURIComponent(editingDataset.id)}`, { method: "PATCH", body });
+    } else {
+      body.id = byId("datasetId").value.trim();
+      await api("/admin/api/datasets", { method: "POST", body });
+    }
+    byId("datasetDialog").close();
+    editingDataset = null;
+    await Promise.all([loadDatasets(), loadOverview()]);
+    toast("Dataset збережено");
+  } catch (error) { toast(error.message, true); }
+}
+
+async function deleteDataset(item) {
+  if (!window.confirm(`Видалити Dataset ${item.id} і всі його mirrors?`)) return;
+  try {
+    await api(`/admin/api/datasets/${encodeURIComponent(item.id)}`, { method: "DELETE" });
+    await Promise.all([loadDatasets(), loadOverview()]);
+    toast("Dataset видалено");
+  } catch (error) { toast(error.message, true); }
+}
+
+function openMirror(item) {
+  mirrorDataset = item;
+  byId("mirrorDialogTitle").textContent = `Нове дзеркало · ${item.id}`;
+  byId("mirrorForm").reset();
+  byId("mirrorDialog").showModal();
+}
+
+async function saveMirror(event) {
+  event.preventDefault();
+  try {
+    await api(`/admin/api/datasets/${encodeURIComponent(mirrorDataset.id)}/mirrors`, {
+      method: "POST",
+      body: {
+        format: byId("mirrorFormat").value,
+        label: byId("mirrorLabel").value.trim(),
+        url: byId("mirrorUrl").value.trim(),
+        verified: byId("mirrorVerified").checked,
+      },
+    });
+    byId("mirrorDialog").close();
+    mirrorDataset = null;
+    await Promise.all([loadDatasets(), loadOverview()]);
+    toast("Mirror додано");
+  } catch (error) { toast(error.message, true); }
+}
+
+async function deleteMirror(item) {
+  if (!window.confirm(`Видалити mirror ${item.label}?`)) return;
+  try {
+    await api(`/admin/api/mirrors/${item.id}`, { method: "DELETE" });
+    await Promise.all([loadDatasets(), loadOverview()]);
+    toast("Mirror видалено");
+  } catch (error) { toast(error.message, true); }
 }
 
 async function loadKeys() {
@@ -259,6 +378,7 @@ async function loadView(view) {
   document.querySelectorAll(".view").forEach((item) => { const active = item.id === `view-${view}`; item.classList.toggle("active", active); item.hidden = !active; });
   try {
     if (view === "overview") await loadOverview();
+    if (view === "datasets") await loadDatasets();
     if (view === "keys") await loadKeys();
     if (view === "uploads") await loadUploads();
     if (view === "artifacts") await loadArtifacts();
@@ -276,6 +396,11 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("createKeyForm").addEventListener("submit", createKey);
   byId("registerBagForm").addEventListener("submit", registerBag);
   byId("migrateBagsButton").addEventListener("click", migrateBags);
+  byId("newDatasetButton").addEventListener("click", () => openDataset());
+  byId("datasetForm").addEventListener("submit", saveDataset);
+  byId("cancelDataset").addEventListener("click", () => byId("datasetDialog").close());
+  byId("mirrorForm").addEventListener("submit", saveMirror);
+  byId("cancelMirror").addEventListener("click", () => byId("mirrorDialog").close());
   byId("metadataForm").addEventListener("submit", saveMetadata);
   byId("cancelMetadata").addEventListener("click", () => byId("metadataDialog").close());
   byId("copyKeyButton").addEventListener("click", async () => {

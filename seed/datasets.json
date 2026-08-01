@@ -1,0 +1,369 @@
+{
+  "version": "2026-08-02.1",
+  "datasets": [
+    {
+      "id": "e.1.1.e", "family": "EuRoC MAV", "name": "V1_01_easy", "measurement": "58 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_01_easy/V1_01_easy.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1LFrdiMU6UBjtFfXPHzjJ4L7iDIXcdhvh/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.1.2.m", "family": "EuRoC MAV", "name": "V1_02_medium", "measurement": "76 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_02_medium/V1_02_medium.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1rlGSy7h38ucm8jr8ssH-sJPX84JfkBtX/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.1.3.d", "family": "EuRoC MAV", "name": "V1_03_difficult", "measurement": "79 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room1/V1_03_difficult/V1_03_difficult.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1Gy1zc4LaMlwsLpXBqOIci6Y3cV_5r-0k/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.2.1.e", "family": "EuRoC MAV", "name": "V2_01_easy", "measurement": "37 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room2/V2_01_easy/V2_01_easy.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1KAkE8Ptq3eSQlXMozJgzNIAVUBH3h0FP/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.2.2.m", "family": "EuRoC MAV", "name": "V2_02_medium", "measurement": "83 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room2/V2_02_medium/V2_02_medium.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1Gj4psmvcAwYwCp4T4CQH-d2ZVJ09d3x2/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.2.3.d", "family": "EuRoC MAV", "name": "V2_03_difficult", "measurement": "86 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/vicon_room2/V2_03_difficult/V2_03_difficult.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1ohWd0JqDvVhTqjOS5MqHafit5MPdlbff/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.mh.1.e", "family": "EuRoC MAV", "name": "MH_01_easy", "measurement": "80 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_01_easy/MH_01_easy.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1UP4nkuSEOQECZTswwh9BPgfMl-dnDstA/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.mh.2.e", "family": "EuRoC MAV", "name": "MH_02_easy", "measurement": "73 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_02_easy/MH_02_easy.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1wWZgZCqYz6zzzTXS0iqvQCP-cWfFuGLK/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.mh.3.m", "family": "EuRoC MAV", "name": "MH_03_medium", "measurement": "131 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_03_medium/MH_03_medium.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1er07gZ8rso8R3Su00hJMm_GZ4z1n9Rpq/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.mh.4.d", "family": "EuRoC MAV", "name": "MH_04_difficult", "measurement": "92 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_04_difficult/MH_04_difficult.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1eC8joRXo1rh0wzOpq3e-B4dQ8-w6wZYz/view?usp=drive_link", "verified": true}
+      ]
+    },
+    {
+      "id": "e.mh.5.d", "family": "EuRoC MAV", "name": "MH_05_difficult", "measurement": "98 m",
+      "description": "EuRoC MAV visual-inertial sequence.",
+      "homepage_url": "https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/euroc_mav",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/euroc_mav",
+      "mirrors": [
+        {"format": "rosbag", "label": "ETH Zürich", "url": "http://robotics.ethz.ch/~asl-datasets/ijrr_euroc_mav_dataset/machine_hall/MH_05_difficult/MH_05_difficult.bag", "verified": true},
+        {"format": "rosbag2", "label": "Google Drive", "url": "https://drive.google.com/file/d/1zoN94K1Afrp7HXSduRLkJBiEjPKdk1UA/view?usp=drive_link", "verified": true}
+      ]
+    },
+
+    {
+      "id": "t.r.1", "family": "TUM-VI", "name": "room1", "measurement": "147 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room1_512_16.bag", "verified": true}]
+    },
+    {
+      "id": "t.r.2", "family": "TUM-VI", "name": "room2", "measurement": "142 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room2_512_16.bag", "verified": true}]
+    },
+    {
+      "id": "t.r.3", "family": "TUM-VI", "name": "room3", "measurement": "136 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room3_512_16.bag", "verified": true}]
+    },
+    {
+      "id": "t.r.4", "family": "TUM-VI", "name": "room4", "measurement": "69 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room4_512_16.bag", "verified": true}]
+    },
+    {
+      "id": "t.r.5", "family": "TUM-VI", "name": "room5", "measurement": "132 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room5_512_16.bag", "verified": true}]
+    },
+    {
+      "id": "t.r.6", "family": "TUM-VI", "name": "room6", "measurement": "67 m",
+      "description": "TUM Visual-Inertial room sequence.",
+      "homepage_url": "https://cvg.cit.tum.de/data/datasets/visual-inertial-dataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/tum_vi",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/tum_vi",
+      "mirrors": [{"format": "rosbag", "label": "TUM", "url": "http://vision.in.tum.de/tumvi/calibrated/512_16/dataset-room6_512_16.bag", "verified": true}]
+    },
+
+    {
+      "id": "ra.t.1", "family": "RPNG AR Table", "name": "table1", "measurement": "4.77 GB · 56 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.2", "family": "RPNG AR Table", "name": "table2", "measurement": "5.54 GB · 44 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.3", "family": "RPNG AR Table", "name": "table3", "measurement": "13.19 GB · 88 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.4", "family": "RPNG AR Table", "name": "table4", "measurement": "11.49 GB · 91 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.5", "family": "RPNG AR Table", "name": "table5", "measurement": "11.66 GB · 75 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.6", "family": "RPNG AR Table", "name": "table6", "measurement": "5.26 GB · 50 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.7", "family": "RPNG AR Table", "name": "table7", "measurement": "9.02 GB · 63 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+    {
+      "id": "ra.t.8", "family": "RPNG AR Table", "name": "table8", "measurement": "16.01 GB · 125 m",
+      "description": "RPNG indoor AR table visual-inertial sequence.", "homepage_url": "https://github.com/rpng/ar_table_dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/rpng_plane", "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_plane"
+    },
+
+    {
+      "id": "ro.ar.1", "family": "RPNG OpenVINS", "name": "ArUco Room 01", "measurement": "27 m",
+      "description": "RPNG OpenVINS indoor ArUco sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_aruco"
+    },
+    {
+      "id": "ro.ar.2", "family": "RPNG OpenVINS", "name": "ArUco Room 02", "measurement": "93 m",
+      "description": "RPNG OpenVINS indoor ArUco sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_aruco"
+    },
+    {
+      "id": "ro.ah.1", "family": "RPNG OpenVINS", "name": "ArUco Hallway 01", "measurement": "190 m",
+      "description": "RPNG OpenVINS hallway sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_aruco"
+    },
+    {
+      "id": "ro.ah.2", "family": "RPNG OpenVINS", "name": "ArUco Hallway 02", "measurement": "105 m",
+      "description": "RPNG OpenVINS hallway sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_aruco"
+    },
+    {
+      "id": "ro.n.1", "family": "RPNG OpenVINS", "name": "Neighborhood 01", "measurement": "2300 m",
+      "description": "RPNG OpenVINS outdoor neighborhood sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_ironsides"
+    },
+    {
+      "id": "ro.n.2", "family": "RPNG OpenVINS", "name": "Neighborhood 02", "measurement": "7400 m",
+      "description": "RPNG OpenVINS outdoor neighborhood sequence.", "homepage_url": "https://docs.openvins.com/gs-datasets.html", "ground_truth_url": null, "config_url": "https://github.com/rpng/open_vins/tree/master/config/rpng_ironsides"
+    },
+
+    {
+      "id": "u.i.5", "family": "UZH-FPV", "name": "Indoor 5", "measurement": "157 m",
+      "description": "UZH-FPV indoor drone-racing visual-inertial sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor"
+    },
+    {
+      "id": "u.i.6", "family": "UZH-FPV", "name": "Indoor 6", "measurement": "204 m",
+      "description": "UZH-FPV indoor drone-racing visual-inertial sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor"
+    },
+    {
+      "id": "u.i.7", "family": "UZH-FPV", "name": "Indoor 7", "measurement": "314 m",
+      "description": "UZH-FPV indoor drone-racing visual-inertial sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor"
+    },
+    {
+      "id": "u.i.9", "family": "UZH-FPV", "name": "Indoor 9", "measurement": "136 m",
+      "description": "UZH-FPV indoor drone-racing visual-inertial sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor"
+    },
+    {
+      "id": "u.i.10", "family": "UZH-FPV", "name": "Indoor 10", "measurement": "129 m",
+      "description": "UZH-FPV indoor drone-racing visual-inertial sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor"
+    },
+    {
+      "id": "u.i45.2", "family": "UZH-FPV", "name": "Indoor 45deg 2", "measurement": "207 m",
+      "description": "UZH-FPV tilted-camera indoor sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor_45"
+    },
+    {
+      "id": "u.i45.4", "family": "UZH-FPV", "name": "Indoor 45deg 4", "measurement": "164 m",
+      "description": "UZH-FPV tilted-camera indoor sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor_45"
+    },
+    {
+      "id": "u.i45.12", "family": "UZH-FPV", "name": "Indoor 45deg 12", "measurement": "112 m",
+      "description": "UZH-FPV tilted-camera indoor sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor_45"
+    },
+    {
+      "id": "u.i45.13", "family": "UZH-FPV", "name": "Indoor 45deg 13", "measurement": "159 m",
+      "description": "UZH-FPV tilted-camera indoor sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor_45"
+    },
+    {
+      "id": "u.i45.14", "family": "UZH-FPV", "name": "Indoor 45deg 14", "measurement": "211 m",
+      "description": "UZH-FPV tilted-camera indoor sequence.", "homepage_url": "https://fpv.ifi.uzh.ch/", "ground_truth_url": "https://docs.openvins.com/gs-datasets.html", "config_url": "https://github.com/rpng/open_vins/tree/master/config/uzhfpv_indoor_45"
+    },
+
+    {
+      "id": "ku.u.28", "family": "KAIST Urban", "name": "Urban 28", "measurement": "11.47 km",
+      "description": "KAIST Complex Urban autonomous-driving sequence; source format is not ROS Bag.", "homepage_url": "https://sites.google.com/view/complex-urban-dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist"
+    },
+    {
+      "id": "ku.u.32", "family": "KAIST Urban", "name": "Urban 32", "measurement": "7.30 km",
+      "description": "KAIST Complex Urban autonomous-driving sequence; source format is not ROS Bag.", "homepage_url": "https://sites.google.com/view/complex-urban-dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist"
+    },
+    {
+      "id": "ku.u.38", "family": "KAIST Urban", "name": "Urban 38", "measurement": "11.42 km",
+      "description": "KAIST Complex Urban autonomous-driving sequence; source format is not ROS Bag.", "homepage_url": "https://sites.google.com/view/complex-urban-dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist"
+    },
+    {
+      "id": "ku.u.39", "family": "KAIST Urban", "name": "Urban 39", "measurement": "11.06 km",
+      "description": "KAIST Complex Urban autonomous-driving sequence; source format is not ROS Bag.", "homepage_url": "https://sites.google.com/view/complex-urban-dataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist"
+    },
+
+    {
+      "id": "iv.dev.4.ff.1", "family": "iVINS", "name": "dev_4_flight_field_01", "measurement": "Unknown",
+      "description": "iVINS dev_4 flight-field recording. Public external binary mirror is not yet verified.",
+      "homepage_url": "https://github.com/Drone-Age/iVINS-mav-dataset", "ground_truth_url": null, "config_url": "https://github.com/Drone-Age/iVINS-mav-dataset/tree/main/configurations/ivins"
+    },
+
+    {
+      "id": "kv.c", "family": "KAIST VIO", "name": "circle", "measurement": "29.99",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset",
+      "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio",
+      "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [
+        {"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/circle/circle.bag", "verified": true},
+        {"format": "rosbag", "label": "Hugging Face mirror", "url": "https://huggingface.co/datasets/zinuok/KAIST-VIO-Dataset/resolve/main/data/circle/circle.bag", "verified": true}
+      ]
+    },
+    {
+      "id": "kv.c.f", "family": "KAIST VIO", "name": "circle_fast", "measurement": "64.15",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/circle/circle_fast.bag", "verified": true}]
+    },
+    {
+      "id": "kv.c.h", "family": "KAIST VIO", "name": "circle_head", "measurement": "35.05",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/circle/circle_head.bag", "verified": true}]
+    },
+    {
+      "id": "kv.i", "family": "KAIST VIO", "name": "infinite", "measurement": "29.35",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/infinite/infinite.bag", "verified": true}]
+    },
+    {
+      "id": "kv.i.f", "family": "KAIST VIO", "name": "infinite_fast", "measurement": "54.24",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/infinite/infinite_fast.bag", "verified": true}]
+    },
+    {
+      "id": "kv.i.h", "family": "KAIST VIO", "name": "infinite_head", "measurement": "37.45",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/infinite/infinite_head.bag", "verified": true}]
+    },
+    {
+      "id": "kv.r", "family": "KAIST VIO", "name": "rotation", "measurement": "7.82",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/rotation/rotation.bag", "verified": true}]
+    },
+    {
+      "id": "kv.r.f", "family": "KAIST VIO", "name": "rotation_fast", "measurement": "14.55",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/rotation/rotation_fast.bag", "verified": true}]
+    },
+    {
+      "id": "kv.s", "family": "KAIST VIO", "name": "square", "measurement": "41.94",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/square/square.bag", "verified": true}]
+    },
+    {
+      "id": "kv.s.f", "family": "KAIST VIO", "name": "square_fast", "measurement": "44.07",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/square/square_fast.bag", "verified": true}]
+    },
+    {
+      "id": "kv.s.h", "family": "KAIST VIO", "name": "square_head", "measurement": "50.00",
+      "description": "KAIST indoor MAV visual-inertial sequence; source catalog unit is unspecified.",
+      "homepage_url": "https://github.com/url-kaist/kaistviodataset", "ground_truth_url": "https://github.com/rpng/open_vins/tree/master/ov_data/kaist_vio", "config_url": "https://github.com/rpng/open_vins/tree/master/config/kaist_vio",
+      "mirrors": [{"format": "rosbag", "label": "KAIST", "url": "https://urserver.kaist.ac.kr/publicdata/KAIST_VIO_Dataset/square/square_head.bag", "verified": true}]
+    }
+  ]
+}

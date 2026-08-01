@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir --requirement requirements.txt \
 COPY --chown=catalog:catalog server.py api_keys.py ./
 COPY --chown=catalog:catalog templates ./templates
 COPY --chown=catalog:catalog static ./static
+COPY --chown=catalog:catalog seed ./seed
 
 USER 10001:10001
 

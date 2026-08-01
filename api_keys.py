@@ -18,7 +18,7 @@ from pathlib import Path
 
 KEY_RE = re.compile(r"^ivins_([0-9a-f]{16})_([A-Za-z0-9_-]{43})$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$")
-ROLES = {"admin", "publisher", "reader"}
+ROLES = {"admin", "user"}
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,9 @@ def connect() -> sqlite3.Connection:
     columns = {row[1] for row in db.execute("PRAGMA table_info(api_keys)")}
     if "role" not in columns:
         db.execute("ALTER TABLE api_keys ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'")
+    db.execute(
+        "UPDATE api_keys SET role='user' WHERE role IN ('reader','publisher')"
+    )
     db.commit()
     return db
 
@@ -80,7 +83,7 @@ def create_api_key(name: str, role: str = "admin") -> tuple[str, str]:
     if not NAME_RE.fullmatch(name):
         raise ValueError("name must be 1-64 safe characters")
     if role not in ROLES:
-        raise ValueError("role must be admin, publisher, or reader")
+        raise ValueError("role must be admin or user")
     with connection() as db:
         for _ in range(10):
             key_id = secrets.token_hex(8)
@@ -159,7 +162,7 @@ def authenticate_api_key(token: str) -> KeyIdentity | None:
     expected = row["secret_digest"] if row else "0" * 64
     if not row or not hmac.compare_digest(candidate, expected):
         return None
-    role = row["role"] if row["role"] in ROLES else "reader"
+    role = row["role"] if row["role"] in ROLES else "user"
     return KeyIdentity(key_id=key_id, role=role)
 
 
