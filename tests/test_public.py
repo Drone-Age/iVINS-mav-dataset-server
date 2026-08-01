@@ -3,6 +3,7 @@
 
 import hashlib
 import os
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -49,7 +50,13 @@ class PublicCatalogTest(unittest.TestCase):
             ],
             response.json["families"],
         )
+        self.assertEqual(["dev_04", "general"], response.json["profiles"])
         euroc = next(item for item in response.json["datasets"] if item["id"] == "e.1.1.e")
+        ivins = next(
+            item for item in response.json["datasets"] if item["id"] == "iv.dev.4.ff.1"
+        )
+        self.assertEqual("general", euroc["profile"])
+        self.assertEqual("dev_04", ivins["profile"])
         self.assertTrue(euroc["mirrors"])
         self.assertTrue(all(mirror["url"].startswith(("http://", "https://")) for mirror in euroc["mirrors"]))
         self.assertNotIn("storage_path", response.get_data(as_text=True))
@@ -64,6 +71,7 @@ class PublicCatalogTest(unittest.TestCase):
         self.assertNotIn("document.cookie", source)
         self.assertNotIn("innerHTML", source)
         self.assertNotIn("api_key=", source.lower())
+        self.assertIn("profileFilter", source)
 
     def test_api_key_maps_to_user_or_admin(self):
         self.assertEqual(401, self.client.get("/auth/session").status_code)
@@ -92,6 +100,31 @@ class PublicCatalogTest(unittest.TestCase):
             },
         )
         self.assertEqual(201, created.status_code, created.json)
+        public = self.client.get("/public/api/datasets").json
+        item = next(item for item in public["datasets"] if item["id"] == "custom.1")
+        self.assertEqual("general", item["profile"])
+
+        dataset_update = {
+            "family": "Custom",
+            "profile": "dev_01",
+            "name": "Flight 01",
+            "description": "External recording",
+            "measurement": "12 m",
+            "homepage_url": "https://example.com/dataset",
+            "ground_truth_url": "",
+            "config_url": "",
+            "visible": True,
+        }
+        invalid_profile = self.client.patch(
+            "/admin/api/datasets/custom.1",
+            headers=self.admin,
+            json={**dataset_update, "profile": "DEV 01"},
+        )
+        self.assertEqual(400, invalid_profile.status_code)
+        updated = self.client.patch(
+            "/admin/api/datasets/custom.1", headers=self.admin, json=dataset_update
+        )
+        self.assertEqual(200, updated.status_code, updated.json)
         invalid = self.client.post(
             "/admin/api/datasets/custom.1/mirrors",
             headers=self.admin,
@@ -116,6 +149,8 @@ class PublicCatalogTest(unittest.TestCase):
         self.assertEqual(201, mirror.status_code, mirror.json)
         public = self.client.get("/public/api/datasets").json
         item = next(item for item in public["datasets"] if item["id"] == "custom.1")
+        self.assertEqual("dev_01", item["profile"])
+        self.assertEqual(["dev_01", "dev_04", "general"], public["profiles"])
         self.assertEqual("https://mirror.example/custom.1.bag", item["mirrors"][0]["url"])
         self.assertEqual(
             200,
@@ -127,6 +162,49 @@ class PublicCatalogTest(unittest.TestCase):
             200,
             self.client.delete("/admin/api/datasets/custom.1", headers=self.admin).status_code,
         )
+
+    def test_existing_v3_dataset_table_migrates_profiles_without_data_loss(self):
+        database = sqlite3.connect(self.database)
+        database.executescript(
+            """
+            CREATE TABLE datasets (
+              id TEXT PRIMARY KEY,
+              family TEXT NOT NULL,
+              name TEXT NOT NULL,
+              description TEXT NOT NULL DEFAULT '',
+              measurement TEXT NOT NULL DEFAULT '',
+              homepage_url TEXT,
+              ground_truth_url TEXT,
+              config_url TEXT,
+              visible INTEGER NOT NULL DEFAULT 1 CHECK(visible IN (0,1)),
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO app_settings(key,value)
+            VALUES('dataset_seed_version','2026-08-02.1');
+            INSERT INTO datasets(id,family,name,description,visible)
+            VALUES('legacy.1','Legacy','Legacy flight','must survive',1);
+            INSERT INTO datasets(id,family,name,description,visible)
+            VALUES('iv.dev.4.ff.1','iVINS','Existing iVINS flight','must survive too',1);
+            """
+        )
+        database.commit()
+        database.close()
+
+        migrated = server.connect()
+        columns = {row[1] for row in migrated.execute("PRAGMA table_info(datasets)")}
+        legacy = migrated.execute(
+            "SELECT profile,description FROM datasets WHERE id='legacy.1'"
+        ).fetchone()
+        ivins = migrated.execute(
+            "SELECT profile FROM datasets WHERE id='iv.dev.4.ff.1'"
+        ).fetchone()
+        migrated.close()
+
+        self.assertIn("profile", columns)
+        self.assertEqual(("general", "must survive"), tuple(legacy))
+        self.assertEqual("dev_04", ivins["profile"])
 
     def add_local_artifact(self):
         self.bags.mkdir(exist_ok=True)

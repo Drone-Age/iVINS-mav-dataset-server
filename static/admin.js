@@ -121,10 +121,16 @@ async function loadOverview() {
 async function loadDatasets() {
   const data = await api("/admin/api/datasets?per_page=100");
   const body = byId("datasetsBody");
-  if (!data.items.length) return tableEmpty(body, 8, "Datasets відсутні");
+  if (!data.items.length) return tableEmpty(body, 9, "Datasets відсутні");
   const rows = data.items.map((item) => {
     const row = document.createElement("tr");
-    row.append(make("td", item.id, "hash"), make("td", item.family), make("td", item.name), make("td", item.measurement || "—"));
+    row.append(
+      make("td", item.id, "hash"),
+      make("td", item.family),
+      make("td", item.profile || "general", "hash"),
+      make("td", item.name),
+      make("td", item.measurement || "—"),
+    );
     const mirrors = make("td", null, "row-actions");
     item.mirrors.forEach((mirror) => {
       mirrors.append(badge(`${mirror.format}: ${mirror.label}`, mirror.verified ? "good" : "warn"));
@@ -153,6 +159,7 @@ function openDataset(item = null) {
   byId("datasetId").value = item?.id || "";
   byId("datasetId").disabled = Boolean(item);
   byId("datasetFamily").value = item?.family || "";
+  byId("datasetProfile").value = item?.profile || "general";
   byId("datasetName").value = item?.name || "";
   byId("datasetMeasurement").value = item?.measurement || "";
   byId("datasetDescription").value = item?.description || "";
@@ -167,6 +174,7 @@ async function saveDataset(event) {
   event.preventDefault();
   const body = {
     family: byId("datasetFamily").value.trim(),
+    profile: byId("datasetProfile").value.trim(),
     name: byId("datasetName").value.trim(),
     measurement: byId("datasetMeasurement").value.trim(),
     description: byId("datasetDescription").value.trim(),

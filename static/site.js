@@ -155,7 +155,7 @@ function datasetRow(item) {
     const link = document.createElement("a"); link.href = item.homepage_url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.append(title); name.append(link);
   } else name.append(title);
   if (item.description) name.append(element("small", item.description));
-  row.append(name, element("td", item.measurement || "—"), formatCell(item, "rosbag"), formatCell(item, "rosbag2"), referenceCell(item));
+  row.append(name, element("td", item.profile, "profile-badge"), element("td", item.measurement || "—"), formatCell(item, "rosbag"), formatCell(item, "rosbag2"), referenceCell(item));
   return row;
 }
 
@@ -167,7 +167,7 @@ function familyBlock(family, items) {
   const table = document.createElement("table");
   const head = document.createElement("thead");
   const headRow = document.createElement("tr");
-  ["ID", "Dataset Name", "Length / Size", "ROS Bag", "ROS Bag2", "Ground Truth / Config"].forEach((label) => headRow.append(element("th", label)));
+  ["ID", "Dataset Name", "Profile", "Length / Size", "ROS Bag", "ROS Bag2", "Ground Truth / Config"].forEach((label) => headRow.append(element("th", label)));
   head.append(headRow);
   const body = document.createElement("tbody");
   body.replaceChildren(...items.map(datasetRow));
@@ -178,7 +178,8 @@ function familyBlock(family, items) {
 function renderCatalog() {
   const query = byId("searchInput").value.trim().toLowerCase();
   const family = byId("familyFilter").value;
-  const filtered = catalog.filter((item) => (!family || item.family === family) && (!query || `${item.id} ${item.name} ${item.description}`.toLowerCase().includes(query)));
+  const profile = byId("profileFilter").value;
+  const filtered = catalog.filter((item) => (!family || item.family === family) && (!profile || item.profile === profile) && (!query || `${item.id} ${item.name} ${item.profile} ${item.description}`.toLowerCase().includes(query)));
   const grouped = new Map();
   filtered.forEach((item) => { if (!grouped.has(item.family)) grouped.set(item.family, []); grouped.get(item.family).push(item); });
   const list = byId("familyList");
@@ -199,6 +200,11 @@ async function loadCatalog() {
     const defaultOption = element("option", "Усі сімейства"); defaultOption.value = "";
     select.replaceChildren(defaultOption, ...data.families.map((family) => { const option = element("option", family); option.value = family; return option; }));
     select.value = data.families.includes(selected) ? selected : "";
+    const profileSelect = byId("profileFilter");
+    const selectedProfile = profileSelect.value;
+    const allProfiles = element("option", "Усі профілі"); allProfiles.value = "";
+    profileSelect.replaceChildren(allProfiles, ...data.profiles.map((profile) => { const option = element("option", profile); option.value = profile; return option; }));
+    profileSelect.value = data.profiles.includes(selectedProfile) ? selectedProfile : "";
     renderCatalog();
   } catch (error) {
     byId("catalogStatus").textContent = "Каталог тимчасово недоступний.";
@@ -214,6 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
   byId("refreshButton").addEventListener("click", loadCatalog);
   byId("searchInput").addEventListener("input", renderCatalog);
   byId("familyFilter").addEventListener("change", renderCatalog);
+  byId("profileFilter").addEventListener("change", renderCatalog);
   updateIdentity();
   loadCatalog();
 });
