@@ -79,7 +79,7 @@
           <div><p class="eyebrow">Public catalog</p><h2 id="datasetsTitle">Datasets</h2></div>
           <button class="button primary" id="newDatasetButton" type="button">Додати Dataset</button>
         </div>
-        <div class="table-panel"><table><thead><tr><th>ID</th><th>Сімейство</th><th>Назва</th><th>Вимір</th><th>Mirrors</th><th>Local</th><th>Видимість</th><th></th></tr></thead><tbody id="datasetsBody"></tbody></table></div>
+        <div class="table-panel"><table><thead><tr><th>ID</th><th>Сімейство</th><th>Профіль</th><th>Назва</th><th>Вимір</th><th>Mirrors</th><th>Local</th><th>Видимість</th><th></th></tr></thead><tbody id="datasetsBody"></tbody></table></div>
       </section>
 
       <section class="view" id="view-keys" aria-labelledby="keysTitle" hidden>
@@ -149,6 +149,7 @@
       <div class="dialog-grid">
         <div><label for="datasetId">ID</label><input id="datasetId" required placeholder="e.1.1.e"></div>
         <div><label for="datasetFamily">Сімейство</label><input id="datasetFamily" required placeholder="EuRoC MAV"></div>
+        <div><label for="datasetProfile">Профіль</label><input id="datasetProfile" maxlength="64" placeholder="general або dev_01"><small>Порожнє значення автоматично стає general.</small></div>
         <div><label for="datasetName">Назва</label><input id="datasetName" required placeholder="V1_01_easy"></div>
         <div><label for="datasetMeasurement">Length / Size</label><input id="datasetMeasurement" placeholder="58 m"></div>
         <div class="wide"><label for="datasetDescription">Опис</label><textarea id="datasetDescription" rows="3"></textarea></div>

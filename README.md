@@ -1,13 +1,14 @@
 # iVINS MAV Dataset Server
 
-Dataset Server v3 is a public Web catalog for visual-inertial datasets and an
+Dataset Server v3.1 is a public Web catalog for visual-inertial datasets and an
 authenticated immutable store for local iVINS artifacts.
 
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
 [`Drone-Age/iVINS-mav-dataset`](https://github.com/Drone-Age/iVINS-mav-dataset)
 registry: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
-and configuration links.
+and configuration links. Each Dataset also has an independent iVINS profile
+that can be filtered separately from its family.
 
 ## Access model
 
@@ -88,6 +89,18 @@ Seed insertion is idempotent and does not overwrite administrator edits.
 Admins can add, edit, hide and delete Datasets, and add or remove external
 mirrors, through controlled endpoints. Arbitrary SQL is deliberately absent.
 
+### Dataset profiles
+
+`profile` is a lowercase stable identifier such as `general`, `dev_01` or
+`dev_04`. When it is omitted or blank, the server stores `general`. The public
+site exposes a dedicated profile filter, while the administration interface
+shows and edits the value explicitly. Artifact upload and manual BAG metadata
+may also include `profile`; server-side validation remains authoritative.
+
+On first v3.1 startup, existing Dataset rows are migrated in place without
+deletion: their profile becomes `general`. The bundled `iv.dev.4.ff.1` record
+is classified as `dev_04`.
+
 ## Local artifact downloads
 
 Direct local download routes require a `user` or `admin` bearer key. For a
@@ -131,14 +144,16 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade from v2.1
+## Upgrade to v3.1
 
 1. Back up the complete `var/` directory.
-2. Deploy the v3 image against the same data directory.
+2. Deploy the v3.1 image against the same data directory.
 3. Existing `admin` keys remain admins; `reader` and `publisher` keys are
    migrated to `user`.
-4. Review the seeded public Datasets and mirrors in `/admin`.
-5. Confirm `/health` reports `server_version: 3.0.0`, `schema_version: 1.0`, and
+4. Existing Dataset rows receive `profile: general`; review profiles in
+   `/admin` and assign additional values such as `dev_01` where needed.
+5. Review the seeded public Datasets and mirrors in `/admin`.
+6. Confirm `/health` reports `server_version: 3.1.0`, `schema_version: 1.0`, and
    `key_store_ready: true`.
 
 ## Verification
@@ -147,10 +162,10 @@ server-side size and SHA-256 verification.
 docker compose config --quiet
 docker compose build
 docker run --rm --entrypoint python `
-  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.0.0 `
+  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.1.0 `
   -m unittest discover -s tests -v
 
-docker scout cves ivins-mav-dataset-server:3.0.0 `
+docker scout cves ivins-mav-dataset-server:3.1.0 `
   --only-severity critical,high
 ```
 

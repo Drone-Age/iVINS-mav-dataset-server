@@ -24,11 +24,12 @@ from flask import Flask, g, jsonify, render_template, request, send_file
 import api_keys
 
 SCHEMA_VERSION = "1.0"
-SERVER_VERSION = "3.0.0"
+SERVER_VERSION = "3.1.0"
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
-DATASET_SEED_VERSION = "2026-08-02.1"
+PROFILE_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
+DATASET_SEED_VERSION = "2026-08-02.2"
 app = Flask(__name__)
 
 
@@ -57,11 +58,12 @@ def seed_datasets(db: sqlite3.Connection) -> None:
     for item in payload["datasets"]:
         db.execute(
             "INSERT OR IGNORE INTO datasets "
-            "(id,family,name,description,measurement,homepage_url,ground_truth_url,"
-            "config_url,visible) VALUES(?,?,?,?,?,?,?,?,1)",
+            "(id,family,profile,name,description,measurement,homepage_url,"
+            "ground_truth_url,config_url,visible) VALUES(?,?,?,?,?,?,?,?,?,1)",
             (
-                item["id"], item["family"], item["name"], item.get("description", ""),
-                item.get("measurement", ""), item.get("homepage_url"),
+                item["id"], item["family"], item.get("profile", "general"),
+                item["name"], item.get("description", ""), item.get("measurement", ""),
+                item.get("homepage_url"),
                 item.get("ground_truth_url"), item.get("config_url"),
             ),
         )
@@ -114,6 +116,7 @@ def connect() -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS datasets (
           id TEXT PRIMARY KEY,
           family TEXT NOT NULL,
+          profile TEXT NOT NULL DEFAULT 'general',
           name TEXT NOT NULL,
           description TEXT NOT NULL DEFAULT '',
           measurement TEXT NOT NULL DEFAULT '',
@@ -151,6 +154,17 @@ def connect() -> sqlite3.Connection:
         CREATE INDEX IF NOT EXISTS tickets_expiry_idx ON download_tickets(expires_at);
         """
     )
+    dataset_columns = {row[1] for row in db.execute("PRAGMA table_info(datasets)")}
+    profile_added = "profile" not in dataset_columns
+    if profile_added:
+        db.execute(
+            "ALTER TABLE datasets ADD COLUMN profile TEXT NOT NULL DEFAULT 'general'"
+        )
+    db.execute("UPDATE datasets SET profile='general' WHERE profile IS NULL OR profile=''")
+    if profile_added:
+        db.execute(
+            "UPDATE datasets SET profile='dev_04' WHERE id='iv.dev.4.ff.1'"
+        )
     seed_datasets(db)
     db.commit()
     return db
@@ -369,11 +383,25 @@ def external_url(value: object, field: str) -> str | None:
     return url
 
 
+def normalize_profile(value: object) -> str:
+    if value is None:
+        return "general"
+    if not isinstance(value, str):
+        raise TypeError("profile must be text")
+    profile = value.strip()
+    if not profile:
+        return "general"
+    if len(profile) > 64 or not PROFILE_RE.fullmatch(profile):
+        raise ValueError("profile must be a lowercase stable identifier")
+    return profile
+
+
 def dataset_fields(body: object, include_id: bool) -> dict[str, object]:
     if not isinstance(body, dict):
         raise TypeError("JSON object is required")
     values: dict[str, object] = {
         "family": bounded_text(body.get("family"), "family", 80, required=True),
+        "profile": normalize_profile(body.get("profile")),
         "name": bounded_text(body.get("name"), "name", 160, required=True),
         "description": bounded_text(body.get("description"), "description", 2000),
         "measurement": bounded_text(body.get("measurement"), "measurement", 64),
@@ -434,7 +462,10 @@ def public_metadata(value: object) -> dict:
         "title", "description", "family", "recording", "profile", "calibrations",
         "links", "derivable_formats",
     }
-    return {key: value[key] for key in sorted(value) if key in allowed}
+    result = {key: value[key] for key in sorted(value) if key in allowed}
+    if "profile" in result:
+        result["profile"] = normalize_profile(result["profile"])
+    return result
 
 
 def artifact_file(dataset_id: str, fmt: str, version: str) -> Path:
@@ -511,6 +542,7 @@ def public_dataset_items(db: sqlite3.Connection) -> list[dict[str, object]]:
         {
             "id": row["id"],
             "family": row["family"],
+            "profile": row["profile"],
             "name": row["name"],
             "description": row["description"],
             "measurement": row["measurement"],
@@ -531,6 +563,7 @@ def public_datasets():
     return jsonify(
         datasets=items,
         families=sorted({item["family"] for item in items}, key=str.casefold),
+        profiles=sorted({item["profile"] for item in items}, key=str.casefold),
         total=len(items),
         server_version=SERVER_VERSION,
     )
@@ -714,10 +747,11 @@ def publish(upload_id: str):
         )
         metadata = json.loads(row["metadata"])
         db.execute(
-            "INSERT OR IGNORE INTO datasets(id,family,name,description,visible) "
-            "VALUES(?,?,?,?,1)",
+            "INSERT OR IGNORE INTO datasets"
+            "(id,family,profile,name,description,visible) VALUES(?,?,?,?,?,1)",
             (
                 row["dataset_id"], metadata.get("family", "iVINS"),
+                normalize_profile(metadata.get("profile")),
                 metadata.get("title", row["dataset_id"]), metadata.get("description", ""),
             ),
         )
@@ -977,10 +1011,10 @@ def admin_datasets():
         with database() as db:
             db.execute(
                 "INSERT INTO datasets"
-                "(id,family,name,description,measurement,homepage_url,ground_truth_url,"
-                "config_url,visible) VALUES(?,?,?,?,?,?,?,?,?)",
+                "(id,family,profile,name,description,measurement,homepage_url,"
+                "ground_truth_url,config_url,visible) VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (
-                    values["id"], values["family"], values["name"],
+                    values["id"], values["family"], values["profile"], values["name"],
                     values["description"], values["measurement"], values["homepage_url"],
                     values["ground_truth_url"], values["config_url"], values["visible"],
                 ),
@@ -1001,11 +1035,11 @@ def admin_update_dataset(dataset_id: str):
         return error("invalid_request", str(exc), 400)
     with database() as db:
         result = db.execute(
-            "UPDATE datasets SET family=?,name=?,description=?,measurement=?,"
+            "UPDATE datasets SET family=?,profile=?,name=?,description=?,measurement=?,"
             "homepage_url=?,ground_truth_url=?,config_url=?,visible=?,"
             "updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (
-                values["family"], values["name"], values["description"],
+                values["family"], values["profile"], values["name"], values["description"],
                 values["measurement"], values["homepage_url"],
                 values["ground_truth_url"], values["config_url"], values["visible"],
                 dataset_id,
@@ -1407,10 +1441,11 @@ def admin_register_bag():
                 ),
             )
             db.execute(
-                "INSERT OR IGNORE INTO datasets(id,family,name,description,visible) "
-                "VALUES(?,?,?,?,1)",
+                "INSERT OR IGNORE INTO datasets"
+                "(id,family,profile,name,description,visible) VALUES(?,?,?,?,?,1)",
                 (
                     dataset_id, metadata.get("family", "iVINS"),
+                    normalize_profile(metadata.get("profile")),
                     metadata.get("title", dataset_id), metadata.get("description", ""),
                 ),
             )
