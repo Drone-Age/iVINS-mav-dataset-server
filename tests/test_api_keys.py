@@ -74,13 +74,19 @@ class ApiKeyCliTest(unittest.TestCase):
 
     def test_cli_creates_scoped_key(self):
         code, output, errors = self.run_cli(
-            "create", "--name", "download-client", "--role", "reader"
+            "create", "--name", "download-client", "--role", "user"
         )
         self.assertEqual(0, code, errors)
         created = json.loads(output)
-        self.assertEqual("reader", created["role"])
+        self.assertEqual("user", created["role"])
         identity = api_keys.authenticate_api_key(created["api_key"])
-        self.assertEqual("reader", identity.role)
+        self.assertEqual("user", identity.role)
+
+    def test_migrates_reader_and_publisher_roles_to_user(self):
+        api_keys.create_api_key("old-reader", "admin")
+        with api_keys.connection() as database:
+            database.execute("UPDATE api_keys SET role='reader'")
+        self.assertEqual("user", api_keys.list_api_keys()[0]["role"])
 
 
 if __name__ == "__main__":

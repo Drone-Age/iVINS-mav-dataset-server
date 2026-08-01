@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import secrets
 import sqlite3
 import tempfile
 import threading
@@ -16,16 +17,18 @@ import uuid
 from collections import defaultdict, deque
 from contextlib import contextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import Flask, g, jsonify, render_template, request, send_file
 
 import api_keys
 
 SCHEMA_VERSION = "1.0"
-SERVER_VERSION = "2.1.0"
+SERVER_VERSION = "3.0.0"
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+DATASET_SEED_VERSION = "2026-08-02.1"
 app = Flask(__name__)
 
 
@@ -39,6 +42,43 @@ def database_path() -> Path:
 
 def bag_root() -> Path:
     return Path(os.environ.get("IVINS_BAG_ROOT", data_root() / "bags")).resolve()
+
+
+def seed_datasets(db: sqlite3.Connection) -> None:
+    current = db.execute(
+        "SELECT value FROM app_settings WHERE key='dataset_seed_version'"
+    ).fetchone()
+    if current and current["value"] == DATASET_SEED_VERSION:
+        return
+    seed_path = Path(__file__).resolve().parent / "seed" / "datasets.json"
+    payload = json.loads(seed_path.read_text(encoding="utf-8"))
+    if payload.get("version") != DATASET_SEED_VERSION:
+        raise RuntimeError("dataset seed version mismatch")
+    for item in payload["datasets"]:
+        db.execute(
+            "INSERT OR IGNORE INTO datasets "
+            "(id,family,name,description,measurement,homepage_url,ground_truth_url,"
+            "config_url,visible) VALUES(?,?,?,?,?,?,?,?,1)",
+            (
+                item["id"], item["family"], item["name"], item.get("description", ""),
+                item.get("measurement", ""), item.get("homepage_url"),
+                item.get("ground_truth_url"), item.get("config_url"),
+            ),
+        )
+        for mirror in item.get("mirrors", []):
+            db.execute(
+                "INSERT OR IGNORE INTO mirrors(dataset_id,format,label,url,verified) "
+                "VALUES(?,?,?,?,?)",
+                (
+                    item["id"], mirror["format"], mirror["label"], mirror["url"],
+                    int(mirror.get("verified", False)),
+                ),
+            )
+    db.execute(
+        "INSERT INTO app_settings(key,value) VALUES('dataset_seed_version',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (DATASET_SEED_VERSION,),
+    )
 
 
 def error(code: str, message: str, status: int, **details):
@@ -71,8 +111,48 @@ def connect() -> sqlite3.Connection:
           storage_path TEXT NOT NULL, published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY(dataset_id, format, version)
         );
+        CREATE TABLE IF NOT EXISTS datasets (
+          id TEXT PRIMARY KEY,
+          family TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          measurement TEXT NOT NULL DEFAULT '',
+          homepage_url TEXT,
+          ground_truth_url TEXT,
+          config_url TEXT,
+          visible INTEGER NOT NULL DEFAULT 1 CHECK(visible IN (0,1)),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS mirrors (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE CASCADE,
+          format TEXT NOT NULL CHECK(format IN ('rosbag','rosbag2')),
+          label TEXT NOT NULL,
+          url TEXT NOT NULL,
+          verified INTEGER NOT NULL DEFAULT 0 CHECK(verified IN (0,1)),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(dataset_id, format, url)
+        );
+        CREATE TABLE IF NOT EXISTS download_tickets (
+          token_digest TEXT PRIMARY KEY,
+          key_id TEXT NOT NULL,
+          dataset_id TEXT NOT NULL,
+          format TEXT NOT NULL,
+          version TEXT NOT NULL,
+          expires_at REAL NOT NULL,
+          used_at REAL
+        );
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS mirrors_dataset_idx ON mirrors(dataset_id);
+        CREATE INDEX IF NOT EXISTS tickets_expiry_idx ON download_tickets(expires_at);
         """
     )
+    seed_datasets(db)
+    db.commit()
     return db
 
 
@@ -140,7 +220,19 @@ def rate_limited(retry_after: int):
 def require_api_key():
     if request.path == "/health":
         return None
-    protected = request.path.startswith("/v1/") or request.path.startswith("/admin/api/")
+    if request.path.startswith("/public/api/"):
+        allowed, retry_after = rate_limiter.check(
+            f"public:{request.remote_addr or 'unknown'}",
+            int_setting("IVINS_PUBLIC_REQUESTS_PER_MINUTE", 120),
+        )
+        return None if allowed else rate_limited(retry_after)
+    if request.path.startswith("/downloads/"):
+        allowed, retry_after = rate_limiter.check(
+            f"ticket:{request.remote_addr or 'unknown'}",
+            int_setting("IVINS_DOWNLOADS_PER_MINUTE", 30),
+        )
+        return None if allowed else rate_limited(retry_after)
+    protected = request.path.startswith(("/v1/", "/admin/api/", "/auth/"))
     if protected:
         if request.is_json:
             maximum = int_setting("IVINS_MAX_JSON_BYTES", 64 * 1024)
@@ -192,12 +284,14 @@ def require_api_key():
                 path=request.path,
             )
             return error("forbidden", "an admin API key is required", 403)
+        ticket_request = request.path.endswith("/download-ticket") and request.method == "POST"
         if (
             request.path.startswith("/v1/")
             and request.method not in {"GET", "HEAD", "OPTIONS"}
-            and identity.role not in {"admin", "publisher"}
+            and identity.role != "admin"
+            and not ticket_request
         ):
-            return error("forbidden", "a publisher or admin API key is required", 403)
+            return error("forbidden", "an admin API key is required", 403)
         g.api_key_id = identity.key_id
         g.api_key_role = identity.role
     return None
@@ -206,7 +300,9 @@ def require_api_key():
 @app.after_request
 def secure_response(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
-    if request.path == "/admin" or request.path.startswith("/static/admin"):
+    if request.path in {"/", "/admin"} or request.path.startswith(
+        ("/static/site", "/static/admin")
+    ):
         response.headers["Content-Security-Policy"] = (
             "default-src 'none'; script-src 'self'; style-src 'self'; "
             "connect-src 'self'; img-src 'self'; frame-ancestors 'none'"
@@ -221,7 +317,7 @@ def secure_response(response):
     if response.mimetype == "application/json":
         response.headers["Cache-Control"] = "no-store"
     if (
-        request.path.startswith(("/v1/", "/admin/api/"))
+        request.path.startswith(("/v1/", "/admin/api/", "/auth/"))
         and request.method not in {"GET", "HEAD", "OPTIONS"}
     ):
         audit_event(
@@ -243,6 +339,80 @@ def validate_identity(dataset_id: object, fmt: object, version: object):
     if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
         return "version is invalid"
     return None
+
+
+def bounded_text(value: object, field: str, maximum: int, required: bool = False) -> str:
+    if value is None and not required:
+        return ""
+    if not isinstance(value, str):
+        raise TypeError(f"{field} must be text")
+    result = value.strip()
+    if required and not result:
+        raise ValueError(f"{field} is required")
+    if len(result) > maximum or any(ord(char) < 32 for char in result):
+        raise ValueError(f"{field} is invalid")
+    return result
+
+
+def external_url(value: object, field: str) -> str | None:
+    if value in {None, ""}:
+        return None
+    url = bounded_text(value, field, 2048, required=True)
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError(f"{field} must be an absolute HTTP/HTTPS URL")
+    return url
+
+
+def dataset_fields(body: object, include_id: bool) -> dict[str, object]:
+    if not isinstance(body, dict):
+        raise TypeError("JSON object is required")
+    values: dict[str, object] = {
+        "family": bounded_text(body.get("family"), "family", 80, required=True),
+        "name": bounded_text(body.get("name"), "name", 160, required=True),
+        "description": bounded_text(body.get("description"), "description", 2000),
+        "measurement": bounded_text(body.get("measurement"), "measurement", 64),
+        "homepage_url": external_url(body.get("homepage_url"), "homepage_url"),
+        "ground_truth_url": external_url(
+            body.get("ground_truth_url"), "ground_truth_url"
+        ),
+        "config_url": external_url(body.get("config_url"), "config_url"),
+    }
+    visible = body.get("visible", True)
+    if not isinstance(visible, bool):
+        raise TypeError("visible must be boolean")
+    values["visible"] = int(visible)
+    if include_id:
+        dataset_id = body.get("id")
+        if not isinstance(dataset_id, str) or not ID_RE.fullmatch(dataset_id):
+            raise ValueError("id must be a lowercase stable identifier")
+        values["id"] = dataset_id
+    return values
+
+
+def mirror_fields(body: object) -> dict[str, object]:
+    if not isinstance(body, dict):
+        raise TypeError("JSON object is required")
+    fmt = body.get("format")
+    if fmt not in FORMATS:
+        raise ValueError("format must be rosbag or rosbag2")
+    verified = body.get("verified", False)
+    if not isinstance(verified, bool):
+        raise TypeError("verified must be boolean")
+    url = external_url(body.get("url"), "url")
+    if not url:
+        raise ValueError("url is required")
+    return {
+        "format": fmt,
+        "label": bounded_text(body.get("label"), "label", 80, required=True),
+        "url": url,
+        "verified": int(verified),
+    }
 
 
 def public_metadata(value: object) -> dict:
@@ -285,6 +455,85 @@ def health():
 @app.get("/admin")
 def admin_page():
     return render_template("admin.html", server_version=SERVER_VERSION)
+
+
+@app.get("/")
+def public_page():
+    return render_template("site.html", server_version=SERVER_VERSION)
+
+
+@app.get("/auth/session")
+def authenticated_session():
+    return jsonify(
+        key_id=g.api_key_id,
+        role=g.api_key_role,
+        user_type="Адмін" if g.api_key_role == "admin" else "Користувач",
+        server_version=SERVER_VERSION,
+    )
+
+
+def public_dataset_items(db: sqlite3.Connection) -> list[dict[str, object]]:
+    dataset_rows = db.execute(
+        "SELECT * FROM datasets WHERE visible=1 "
+        "ORDER BY family COLLATE NOCASE,name COLLATE NOCASE,id"
+    ).fetchall()
+    mirror_rows = db.execute(
+        "SELECT id,dataset_id,format,label,url,verified FROM mirrors "
+        "WHERE verified=1 ORDER BY dataset_id,format,id"
+    ).fetchall()
+    artifact_rows = db.execute(
+        "SELECT dataset_id,format,version,size,sha256,storage_path FROM artifacts "
+        "ORDER BY dataset_id,format,version"
+    ).fetchall()
+    mirrors: dict[str, list[dict[str, object]]] = defaultdict(list)
+    local: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for row in mirror_rows:
+        mirrors[row["dataset_id"]].append({
+            "format": row["format"],
+            "label": row["label"],
+            "url": row["url"],
+            "verified": bool(row["verified"]),
+        })
+    root = bag_root().resolve()
+    for row in artifact_rows:
+        stored = Path(row["storage_path"])
+        resolved = stored.resolve()
+        available = not stored.is_symlink() and resolved.parent == root and resolved.is_file()
+        local[row["dataset_id"]].append({
+            "format": row["format"],
+            "version": row["version"],
+            "size": row["size"],
+            "sha256": row["sha256"],
+            "available": available,
+            "requires_auth": True,
+        })
+    return [
+        {
+            "id": row["id"],
+            "family": row["family"],
+            "name": row["name"],
+            "description": row["description"],
+            "measurement": row["measurement"],
+            "homepage_url": row["homepage_url"],
+            "ground_truth_url": row["ground_truth_url"],
+            "config_url": row["config_url"],
+            "mirrors": mirrors[row["id"]],
+            "local_artifacts": local[row["id"]],
+        }
+        for row in dataset_rows
+    ]
+
+
+@app.get("/public/api/datasets")
+def public_datasets():
+    with database() as db:
+        items = public_dataset_items(db)
+    return jsonify(
+        datasets=items,
+        families=sorted({item["family"] for item in items}, key=str.casefold),
+        total=len(items),
+        server_version=SERVER_VERSION,
+    )
 
 
 def snapshot_payload(db: sqlite3.Connection) -> dict:
@@ -463,6 +712,15 @@ def publish(upload_id: str):
             (row["dataset_id"], row["format"], row["version"], row["actual_size"],
              row["actual_sha256"], row["metadata"], str(target)),
         )
+        metadata = json.loads(row["metadata"])
+        db.execute(
+            "INSERT OR IGNORE INTO datasets(id,family,name,description,visible) "
+            "VALUES(?,?,?,?,1)",
+            (
+                row["dataset_id"], metadata.get("family", "iVINS"),
+                metadata.get("title", row["dataset_id"]), metadata.get("description", ""),
+            ),
+        )
         db.execute("UPDATE uploads SET state='published',staged_path=NULL WHERE id=?", (upload_id,))
     return jsonify(
         upload_id=upload_id, state="published", dataset_id=row["dataset_id"],
@@ -487,6 +745,84 @@ def download(dataset_id: str, fmt: str, version: str):
     if stored_path.is_symlink() or path.parent != bag_root().resolve():
         return error("storage_error", "artifact storage path is invalid", 500)
     return send_file(path, as_attachment=True, conditional=True, etag=row["sha256"])
+
+
+@app.post("/v1/datasets/<dataset_id>/artifacts/<fmt>/<version>/download-ticket")
+def create_download_ticket(dataset_id: str, fmt: str, version: str):
+    if validate_identity(dataset_id, fmt, version):
+        return error("not_found", "unknown artifact", 404)
+    with database() as db:
+        row = db.execute(
+            "SELECT storage_path FROM artifacts WHERE dataset_id=? AND format=? AND version=?",
+            (dataset_id, fmt, version),
+        ).fetchone()
+        if not row:
+            return error("not_found", "unknown published artifact", 404)
+        stored = Path(row["storage_path"])
+        resolved = stored.resolve()
+        if stored.is_symlink() or resolved.parent != bag_root().resolve() or not resolved.is_file():
+            return error("storage_error", "artifact storage path is invalid", 409)
+        now = time.time()
+        db.execute(
+            "DELETE FROM download_tickets WHERE expires_at<? OR used_at IS NOT NULL",
+            (now - 300,),
+        )
+        token = secrets.token_urlsafe(32)
+        expires_at = now + 60
+        db.execute(
+            "INSERT INTO download_tickets"
+            "(token_digest,key_id,dataset_id,format,version,expires_at) VALUES(?,?,?,?,?,?)",
+            (
+                hashlib.sha256(token.encode()).hexdigest(), g.api_key_id, dataset_id,
+                fmt, version, expires_at,
+            ),
+        )
+    audit_event(
+        "download_ticket_created",
+        key_id=g.api_key_id,
+        dataset_id=dataset_id,
+        format=fmt,
+        version=version,
+    )
+    return jsonify(
+        download_url=f"/downloads/{token}",
+        expires_in=60,
+        single_use=True,
+    ), 201
+
+
+@app.get("/downloads/<token>")
+def redeem_download_ticket(token: str):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{43}", token):
+        return error("not_found", "download ticket not found", 404)
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    now = time.time()
+    with database() as db:
+        row = db.execute(
+            "SELECT t.dataset_id,t.format,t.version,a.storage_path,a.sha256 "
+            "FROM download_tickets t JOIN artifacts a "
+            "ON a.dataset_id=t.dataset_id AND a.format=t.format AND a.version=t.version "
+            "WHERE t.token_digest=? AND t.used_at IS NULL AND t.expires_at>=?",
+            (digest, now),
+        ).fetchone()
+        if not row:
+            return error("not_found", "download ticket not found", 404)
+        stored = Path(row["storage_path"])
+        resolved = stored.resolve()
+        if stored.is_symlink() or resolved.parent != bag_root().resolve() or not resolved.is_file():
+            return error("not_found", "download ticket not found", 404)
+        result = db.execute(
+            "UPDATE download_tickets SET used_at=? "
+            "WHERE token_digest=? AND used_at IS NULL AND expires_at>=?",
+            (now, digest, now),
+        )
+        if result.rowcount != 1:
+            return error("not_found", "download ticket not found", 404)
+    response = send_file(
+        resolved, as_attachment=True, conditional=False, etag=row["sha256"]
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 def pagination() -> tuple[int, int, int]:
@@ -575,6 +911,8 @@ def admin_overview():
     with database() as db:
         uploads = db.execute("SELECT COUNT(*) AS count FROM uploads").fetchone()["count"]
         artifacts = db.execute("SELECT COUNT(*) AS count FROM artifacts").fetchone()["count"]
+        datasets = db.execute("SELECT COUNT(*) AS count FROM datasets").fetchone()["count"]
+        mirrors = db.execute("SELECT COUNT(*) AS count FROM mirrors").fetchone()["count"]
         storage_rows = db.execute("SELECT storage_path FROM artifacts").fetchall()
     bag_files = [
         item for item in root.iterdir()
@@ -586,6 +924,8 @@ def admin_overview():
         active_keys=api_keys.active_key_count(),
         uploads=uploads,
         artifacts=artifacts,
+        datasets=datasets,
+        mirrors=mirrors,
         bag_files=len(bag_files),
         bag_bytes=sum(item.stat().st_size for item in bag_files),
         missing_files=sum(not Path(row["storage_path"]).is_file() for row in storage_rows),
@@ -596,6 +936,146 @@ def admin_overview():
         ),
         bag_root=str(root),
     )
+
+
+def admin_dataset_item(db: sqlite3.Connection, row: sqlite3.Row) -> dict[str, object]:
+    mirrors = db.execute(
+        "SELECT id,format,label,url,verified,created_at FROM mirrors "
+        "WHERE dataset_id=? ORDER BY format,id",
+        (row["id"],),
+    ).fetchall()
+    local_count = db.execute(
+        "SELECT COUNT(*) FROM artifacts WHERE dataset_id=?", (row["id"],)
+    ).fetchone()[0]
+    item = dict(row)
+    item["visible"] = bool(item["visible"])
+    item["mirrors"] = [
+        {**dict(mirror), "verified": bool(mirror["verified"])} for mirror in mirrors
+    ]
+    item["local_artifacts"] = local_count
+    return item
+
+
+@app.route("/admin/api/datasets", methods=["GET", "POST"])
+def admin_datasets():
+    if request.method == "GET":
+        page, per_page, offset = pagination()
+        with database() as db:
+            total = db.execute("SELECT COUNT(*) FROM datasets").fetchone()[0]
+            rows = db.execute(
+                "SELECT * FROM datasets ORDER BY family COLLATE NOCASE,"
+                "name COLLATE NOCASE,id LIMIT ? OFFSET ?",
+                (per_page, offset),
+            ).fetchall()
+            items = [admin_dataset_item(db, row) for row in rows]
+        return jsonify(items=items, total=total, page=page, per_page=per_page)
+    try:
+        values = dataset_fields(request.get_json(silent=True), include_id=True)
+    except (TypeError, ValueError) as exc:
+        return error("invalid_request", str(exc), 400)
+    try:
+        with database() as db:
+            db.execute(
+                "INSERT INTO datasets"
+                "(id,family,name,description,measurement,homepage_url,ground_truth_url,"
+                "config_url,visible) VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    values["id"], values["family"], values["name"],
+                    values["description"], values["measurement"], values["homepage_url"],
+                    values["ground_truth_url"], values["config_url"], values["visible"],
+                ),
+            )
+    except sqlite3.IntegrityError:
+        return error("dataset_exists", "dataset id already exists", 409)
+    audit_event("admin_dataset_created", actor_key_id=g.api_key_id, dataset_id=values["id"])
+    return jsonify(id=values["id"]), 201
+
+
+@app.patch("/admin/api/datasets/<dataset_id>")
+def admin_update_dataset(dataset_id: str):
+    if not ID_RE.fullmatch(dataset_id):
+        return error("not_found", "dataset not found", 404)
+    try:
+        values = dataset_fields(request.get_json(silent=True), include_id=False)
+    except (TypeError, ValueError) as exc:
+        return error("invalid_request", str(exc), 400)
+    with database() as db:
+        result = db.execute(
+            "UPDATE datasets SET family=?,name=?,description=?,measurement=?,"
+            "homepage_url=?,ground_truth_url=?,config_url=?,visible=?,"
+            "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (
+                values["family"], values["name"], values["description"],
+                values["measurement"], values["homepage_url"],
+                values["ground_truth_url"], values["config_url"], values["visible"],
+                dataset_id,
+            ),
+        )
+    if result.rowcount != 1:
+        return error("not_found", "dataset not found", 404)
+    audit_event("admin_dataset_updated", actor_key_id=g.api_key_id, dataset_id=dataset_id)
+    return jsonify(id=dataset_id)
+
+
+@app.delete("/admin/api/datasets/<dataset_id>")
+def admin_delete_dataset(dataset_id: str):
+    if not ID_RE.fullmatch(dataset_id):
+        return error("not_found", "dataset not found", 404)
+    with database() as db:
+        if db.execute(
+            "SELECT 1 FROM artifacts WHERE dataset_id=?", (dataset_id,)
+        ).fetchone():
+            return error(
+                "local_artifacts_exist",
+                "delete local artifacts before deleting this dataset",
+                409,
+            )
+        result = db.execute("DELETE FROM datasets WHERE id=?", (dataset_id,))
+    if result.rowcount != 1:
+        return error("not_found", "dataset not found", 404)
+    audit_event("admin_dataset_deleted", actor_key_id=g.api_key_id, dataset_id=dataset_id)
+    return jsonify(deleted=dataset_id)
+
+
+@app.post("/admin/api/datasets/<dataset_id>/mirrors")
+def admin_create_mirror(dataset_id: str):
+    if not ID_RE.fullmatch(dataset_id):
+        return error("not_found", "dataset not found", 404)
+    try:
+        values = mirror_fields(request.get_json(silent=True))
+    except (TypeError, ValueError) as exc:
+        return error("invalid_request", str(exc), 400)
+    try:
+        with database() as db:
+            if not db.execute("SELECT 1 FROM datasets WHERE id=?", (dataset_id,)).fetchone():
+                return error("not_found", "dataset not found", 404)
+            cursor = db.execute(
+                "INSERT INTO mirrors(dataset_id,format,label,url,verified) VALUES(?,?,?,?,?)",
+                (
+                    dataset_id, values["format"], values["label"], values["url"],
+                    values["verified"],
+                ),
+            )
+            mirror_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        return error("mirror_exists", "mirror already exists", 409)
+    audit_event(
+        "admin_mirror_created",
+        actor_key_id=g.api_key_id,
+        dataset_id=dataset_id,
+        mirror_id=mirror_id,
+    )
+    return jsonify(id=mirror_id), 201
+
+
+@app.delete("/admin/api/mirrors/<int:mirror_id>")
+def admin_delete_mirror(mirror_id: int):
+    with database() as db:
+        result = db.execute("DELETE FROM mirrors WHERE id=?", (mirror_id,))
+    if result.rowcount != 1:
+        return error("not_found", "mirror not found", 404)
+    audit_event("admin_mirror_deleted", actor_key_id=g.api_key_id, mirror_id=mirror_id)
+    return jsonify(deleted=mirror_id)
 
 
 @app.route("/admin/api/keys", methods=["GET", "POST"])
@@ -611,18 +1091,18 @@ def admin_keys():
         )
     body = request.get_json(silent=True) or {}
     try:
-        key_id, token = api_keys.create_api_key(body.get("name", ""), body.get("role", "reader"))
+        key_id, token = api_keys.create_api_key(body.get("name", ""), body.get("role", "user"))
     except ValueError as exc:
         return error("invalid_request", str(exc), 400)
     audit_event(
         "admin_key_created",
         actor_key_id=g.api_key_id,
         created_key_id=key_id,
-        role=body.get("role", "reader"),
+        role=body.get("role", "user"),
     )
     return jsonify(
         key_id=key_id,
-        role=body.get("role", "reader"),
+        role=body.get("role", "user"),
         api_key=token,
         warning="The API key is shown once and is not stored in plaintext.",
     ), 201
@@ -924,6 +1404,14 @@ def admin_register_bag():
                 (
                     dataset_id, fmt, version, size, digest,
                     json.dumps(metadata, sort_keys=True), str(path),
+                ),
+            )
+            db.execute(
+                "INSERT OR IGNORE INTO datasets(id,family,name,description,visible) "
+                "VALUES(?,?,?,?,1)",
+                (
+                    dataset_id, metadata.get("family", "iVINS"),
+                    metadata.get("title", dataset_id), metadata.get("description", ""),
                 ),
             )
     except sqlite3.IntegrityError:

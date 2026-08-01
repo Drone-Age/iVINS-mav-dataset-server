@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Public iVINS catalog of visual-inertial datasets and external BAG mirrors.">
+  <meta property="og:title" content="iVINS Datasets">
+  <meta property="og:description" content="Visual-inertial dataset registry">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <title>iVINS Datasets</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+  <script src="{{ url_for('static', filename='site.js') }}" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="iVINS Datasets — головна">
+      <span class="brand-mark" aria-hidden="true">iV</span>
+      <span><strong>iVINS</strong><small>Dataset Registry</small></span>
+    </a>
+    <nav aria-label="Основна навігація">
+      <a href="#datasets">Datasets</a>
+      <a href="https://github.com/Drone-Age/iVINS-mav-dataset" target="_blank" rel="noopener noreferrer">Registry ↗</a>
+    </nav>
+    <div class="account-actions">
+      <span class="role-pill guest" id="rolePill">Гість</span>
+      <a class="button subtle" id="adminLink" href="/admin" hidden>Адмін-панель</a>
+      <button class="button primary" id="loginButton" type="button">Увійти за API-ключем</button>
+      <button class="button subtle" id="logoutButton" type="button" hidden>Вийти</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Visual-inertial recordings</p>
+        <h1>Datasets for repeatable VINS evaluation.</h1>
+        <p class="hero-text">Єдиний каталог публічних записів, зовнішніх BAG-дзеркал та авторизованих iVINS artifacts.</p>
+        <div class="hero-stats" aria-label="Статистика каталогу">
+          <div><strong id="datasetCount">—</strong><span>datasets</span></div>
+          <div><strong id="familyCount">—</strong><span>families</span></div>
+          <div><strong id="mirrorCount">—</strong><span>external mirrors</span></div>
+        </div>
+      </div>
+      <aside class="access-card">
+        <span class="signal"><i></i> Public registry</span>
+        <h2>Доступ без реєстрації</h2>
+        <p>Гості можуть переглядати весь публічний каталог і завантажувати файли із зовнішніх дзеркал.</p>
+        <p class="muted">Локальні server artifacts відкриваються після авторизації API-ключем.</p>
+      </aside>
+    </section>
+
+    <section class="catalog" id="datasets" aria-labelledby="datasetsTitle">
+      <div class="section-heading">
+        <div><p class="eyebrow">Public catalog</p><h2 id="datasetsTitle">Datasets</h2></div>
+        <button class="button subtle" id="refreshButton" type="button">Оновити</button>
+      </div>
+      <div class="filters" role="search">
+        <label><span>Пошук</span><input id="searchInput" type="search" placeholder="ID або назва dataset"></label>
+        <label><span>Сімейство</span><select id="familyFilter"><option value="">Усі сімейства</option></select></label>
+      </div>
+      <div class="catalog-status" id="catalogStatus" role="status">Завантаження каталогу…</div>
+      <div class="family-list" id="familyList"></div>
+    </section>
+
+    <section class="access-grid" aria-label="Рівні доступу">
+      <article><span>01</span><h3>Гість</h3><p>Перегляд Datasets і завантаження тільки із зовнішніх дзеркал.</p></article>
+      <article><span>02</span><h3>Користувач</h3><p>API-ключ відкриває захищені artifacts, що зберігаються на цьому сервері.</p></article>
+      <article><span>03</span><h3>Адмін</h3><p>Керування ключами, Datasets, mirrors, uploads і BAG-файлами.</p></article>
+    </section>
+  </main>
+
+  <footer><span>iVINS Dataset Server {{ server_version }}</span><span>HTTP deployment · API keys are bearer credentials</span></footer>
+
+  <dialog id="loginDialog">
+    <form class="login-card" id="loginForm">
+      <button class="dialog-close" id="closeLogin" type="button" aria-label="Закрити">×</button>
+      <p class="eyebrow">Авторизація</p>
+      <h2>Увійти за API-ключем</h2>
+      <p class="muted">Ключ зберігається лише в пам’яті цієї вкладки та зникає після перезавантаження.</p>
+      <label><span>API-ключ</span><input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" required></label>
+      <button class="button primary full" type="submit">Увійти</button>
+      <p class="form-message" id="loginMessage" role="alert"></p>
+      <p class="http-warning">HTTP не шифрує ключ у мережі. Не вводьте його через недовірене підключення.</p>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

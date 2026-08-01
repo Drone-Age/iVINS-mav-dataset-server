@@ -28,13 +28,9 @@ class AdminWebTest(unittest.TestCase):
         os.environ["IVINS_MAX_UPLOAD_BYTES"] = str(50 * 1024**3)
         server.rate_limiter.reset()
         self.admin_id, self.admin_token = api_keys.create_api_key("admin-test", "admin")
-        self.reader_id, self.reader_token = api_keys.create_api_key("reader-test", "reader")
-        self.publisher_id, self.publisher_token = api_keys.create_api_key(
-            "publisher-test", "publisher"
-        )
+        self.user_id, self.user_token = api_keys.create_api_key("user-test", "user")
         self.admin = {"Authorization": f"Bearer {self.admin_token}"}
-        self.reader = {"Authorization": f"Bearer {self.reader_token}"}
-        self.publisher = {"Authorization": f"Bearer {self.publisher_token}"}
+        self.user = {"Authorization": f"Bearer {self.user_token}"}
         self.client = server.app.test_client()
 
     def tearDown(self):
@@ -55,16 +51,16 @@ class AdminWebTest(unittest.TestCase):
         self.assertNotIn("innerHTML", source)
 
     def test_roles_are_enforced_server_side(self):
-        self.assertEqual(200, self.client.get("/v1/catalog", headers=self.reader).status_code)
+        self.assertEqual(200, self.client.get("/v1/catalog", headers=self.user).status_code)
         self.assertEqual(
             403,
-            self.client.post("/v1/uploads", headers=self.reader, json={}).status_code,
+            self.client.post("/v1/uploads", headers=self.user, json={}).status_code,
         )
         self.assertEqual(
             400,
-            self.client.post("/v1/uploads", headers=self.publisher, json={}).status_code,
+            self.client.post("/v1/uploads", headers=self.admin, json={}).status_code,
         )
-        self.assertEqual(403, self.client.get("/admin/api/session", headers=self.publisher).status_code)
+        self.assertEqual(403, self.client.get("/admin/api/session", headers=self.user).status_code)
         session = self.client.get("/admin/api/session", headers=self.admin)
         self.assertEqual(200, session.status_code)
         self.assertEqual("admin", session.json["role"])
@@ -73,16 +69,16 @@ class AdminWebTest(unittest.TestCase):
         response = self.client.post(
             "/admin/api/keys",
             headers=self.admin,
-            json={"name": "web-reader", "role": "reader"},
+            json={"name": "web-user", "role": "user"},
         )
         self.assertEqual(201, response.status_code, response.json)
         token, key_id = response.json["api_key"], response.json["key_id"]
-        self.assertEqual("reader", api_keys.authenticate_api_key(token).role)
+        self.assertEqual("user", api_keys.authenticate_api_key(token).role)
         self.assertNotIn(token.encode(), self.database.read_bytes())
 
         listed = self.client.get("/admin/api/keys", headers=self.admin).json
         listed_key = next(item for item in listed["items"] if item["id"] == key_id)
-        self.assertEqual("reader", listed_key["role"])
+        self.assertEqual("user", listed_key["role"])
         self.assertNotIn("api_key", listed_key)
 
         revoked = self.client.post(
@@ -92,8 +88,7 @@ class AdminWebTest(unittest.TestCase):
         self.assertIsNone(api_keys.authenticate_api_key(token))
 
     def test_web_cannot_revoke_last_active_admin(self):
-        self.assertTrue(api_keys.revoke_api_key(self.reader_id))
-        self.assertTrue(api_keys.revoke_api_key(self.publisher_id))
+        self.assertTrue(api_keys.revoke_api_key(self.user_id))
         response = self.client.post(
             f"/admin/api/keys/{self.admin_id}/revoke", headers=self.admin
         )

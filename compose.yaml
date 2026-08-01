@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ivins-mav-dataset-server:2.1.0
+    image: ivins-mav-dataset-server:3.0.0
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
@@ -23,6 +23,8 @@ services:
       IVINS_REQUESTS_PER_MINUTE: ${IVINS_REQUESTS_PER_MINUTE:-120}
       IVINS_AUTH_ATTEMPTS_PER_MINUTE: ${IVINS_AUTH_ATTEMPTS_PER_MINUTE:-240}
       IVINS_AUTH_FAILURES_PER_MINUTE: ${IVINS_AUTH_FAILURES_PER_MINUTE:-20}
+      IVINS_DOWNLOADS_PER_MINUTE: ${IVINS_DOWNLOADS_PER_MINUTE:-30}
+      IVINS_PUBLIC_REQUESTS_PER_MINUTE: ${IVINS_PUBLIC_REQUESTS_PER_MINUTE:-120}
     ports:
       - "${IVINS_BIND_ADDRESS:-127.0.0.1}:${IVINS_PORT:-8080}:8080"
     volumes:

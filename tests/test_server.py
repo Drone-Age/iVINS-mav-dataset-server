@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline integration and security tests for Dataset Server v2."""
+"""Offline integration and security tests for Dataset Server v3."""
 
 import hashlib
 import os
@@ -54,7 +54,7 @@ class ServerTest(unittest.TestCase):
     def test_health_is_minimal_and_all_v1_reads_require_a_key(self):
         health = self.client.get("/health")
         self.assertEqual(200, health.status_code)
-        self.assertEqual("2.1.0", health.json["server_version"])
+        self.assertEqual("3.0.0", health.json["server_version"])
         self.assertTrue(health.json["key_store_ready"])
         self.assertEqual(401, self.client.get("/v1/catalog").status_code)
         self.assertEqual(200, self.get("/v1/catalog").status_code)

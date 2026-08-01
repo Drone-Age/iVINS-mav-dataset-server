@@ -1,18 +1,30 @@
 # iVINS MAV Dataset Server
 
-Dataset Server v2.1 is an authenticated catalog and immutable binary store for
-iVINS datasets. Published versions cannot be overwritten. Every `/v1/*`
-request requires an active server-generated API key.
+Dataset Server v3 is a public Web catalog for visual-inertial datasets and an
+authenticated immutable store for local iVINS artifacts.
 
-An admin Web interface at `/admin` provides role-aware key management,
-database views, controlled upload/artifact operations, and reconciliation with
-the single flat BAG directory. It intentionally provides no arbitrary SQL.
+The public site at `/` is available without a key. It presents **Datasets** in
+family tables modeled after the
+[`Drone-Age/iVINS-mav-dataset`](https://github.com/Drone-Age/iVINS-mav-dataset)
+registry: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
+and configuration links.
 
-The application intentionally serves **HTTP**. HTTP does not protect API keys,
-metadata, or artifacts from observation or modification in transit. For
-Internet use, terminate TLS at a reverse proxy/router or carry HTTP through a
-trusted private network or VPN. Do not forward the application port directly
-to an untrusted network.
+## Access model
+
+- **Guest**: no key; can browse public Datasets and follow external HTTP/HTTPS
+  BAG mirrors. A guest cannot download any file stored on this server.
+- **User**: authenticates with a server-generated API key; can also download
+  local artifacts using a short-lived single-use download ticket.
+- **Admin**: has user access plus `/admin` management for API keys, Datasets,
+  mirrors, uploads, artifacts and BAG files.
+
+The browser keeps an entered API key only in page memory. It is never placed in
+a URL, cookie, local storage or session storage, and is forgotten on reload.
+
+Version 3 intentionally serves **HTTP**. HTTP does not protect API keys or
+download tickets from observation in transit. For Internet exposure, terminate
+TLS at a reverse proxy/router or use a trusted VPN. Do not expose a bearer key
+over an untrusted plain-HTTP path.
 
 ## Docker quick start
 
@@ -21,7 +33,7 @@ Copy-Item .env.example .env
 New-Item -ItemType Directory -Path var -Force
 docker compose build
 
-# Bootstrap the first key locally on the server. The plaintext is shown once.
+# Bootstrap the first admin key locally. The plaintext is shown once.
 docker compose run --rm --no-deps server `
   python api_keys.py create --name initial-admin --role admin
 
@@ -29,150 +41,117 @@ docker compose up -d
 Invoke-RestMethod http://127.0.0.1:8080/health
 ```
 
-Store the returned `api_key` in a client-side secret store. It is not retained
-in plaintext by the server and cannot be recovered later.
+Open:
 
-## API key administration
+- `http://127.0.0.1:8080/` for the public Datasets catalog;
+- `http://127.0.0.1:8080/admin` for administration.
 
-The first admin key can only be created by running the CLI on the server.
-After bootstrap, an authenticated admin may create additional server-generated
-keys through the Web interface; generation always occurs on the server.
+## API keys
+
+New keys are always generated on the server and revealed once. The database
+stores only a key ID and SHA-256 digest.
 
 ```powershell
-# Create and reveal a new key once
+# User key for protected local downloads
 docker compose run --rm --no-deps server `
-  python api_keys.py create --name publishing-agent --role publisher
+  python api_keys.py create --name dataset-user --role user
 
-# List ids, labels, creation and revocation timestamps (never secrets)
+# List metadata without secrets
 docker compose run --rm --no-deps server python api_keys.py list
 
-# Revoke immediately without restarting the running server
+# Revoke immediately
 docker compose run --rm --no-deps server `
   python api_keys.py revoke 0123456789abcdef
 ```
 
-Keys use 256 bits of CSPRNG entropy. The database stores a key id and SHA-256
-digest, not the plaintext token. The legacy `IVINS_API_KEY` environment
-variable is ignored by v2 and must be removed from deployments.
+The first admin key is created by CLI. An authenticated admin can create later
+`user` or `admin` keys through the Web interface. The Web API prevents revoking
+the last active admin key.
 
-Roles are enforced server-side:
+## Public Datasets and mirrors
 
-- `reader` can read `/v1/*` catalog and artifact endpoints;
-- `publisher` can also create, upload, verify and publish artifacts;
-- `admin` additionally controls `/admin/api/*` and the Web interface.
+The SQLite catalog has separate `datasets` and `mirrors` records. Mirrors must
+use absolute HTTP/HTTPS URLs and are clearly identified as external links. Only
+mirrors marked verified are exposed to guests. The server does not proxy or
+fetch them.
 
-Existing v2.0 keys are migrated to `admin` so upgrades do not lose access.
+The bundled initial catalog contains 57 manifest-derived records from:
 
-## Web administration
+- EuRoC MAV;
+- TUM-VI;
+- RPNG AR Table and RPNG OpenVINS;
+- UZH-FPV;
+- KAIST Urban and KAIST VIO;
+- iVINS.
 
-Open `http://127.0.0.1:8080/admin` (or the routed server address), then enter an
-active `admin` key. The browser keeps the key only in page memory: it is not
-written to cookies, local storage, or session storage and is forgotten on
-reload or close.
+Seed insertion is idempotent and does not overwrite administrator edits.
+Admins can add, edit, hide and delete Datasets, and add or remove external
+mirrors, through controlled endpoints. Arbitrary SQL is deliberately absent.
 
-The UI supports:
+## Local artifact downloads
 
-- list/create/revoke keys, with new secrets shown once;
-- paginated inspection of keys, uploads and artifacts;
-- deletion of non-published uploads and safe staging cleanup;
-- editing allowlisted public artifact metadata;
-- deleting an artifact record with an explicit independent file-delete choice;
-- listing registered/orphan/missing BAG files and registering an existing file
-  after server-side size and SHA-256 calculation;
-- integrity-checked migration of v2.0 legacy artifact paths into the flat BAG
-  directory, without overwriting an existing target.
-
-Raw SQL is deliberately unavailable. Use an offline SQLite backup and audited
-maintenance procedure for operations outside this controlled model.
-
-## HTTP API
-
-`GET /health` is the only unauthenticated endpoint. It returns minimal liveness,
-schema/version and key-store readiness data.
-
-All business requests use the key as a Bearer credential:
+Direct local download routes require a `user` or `admin` bearer key. For a
+browser download, the authenticated site requests a 60-second single-use
+ticket. Only the ticket digest is stored, and replay returns `404`.
 
 ```powershell
 $headers = @{ Authorization = "Bearer $env:IVINS_CLIENT_API_KEY" }
-Invoke-RestMethod http://127.0.0.1:8080/v1/catalog -Headers $headers
+$ticket = Invoke-RestMethod `
+  http://127.0.0.1:8080/v1/datasets/iv.dev.4.ff.1/artifacts/rosbag/1/download-ticket `
+  -Method Post -Headers $headers -ContentType application/json -Body '{}'
+
+Invoke-WebRequest ("http://127.0.0.1:8080" + $ticket.download_url) -OutFile data.bag
 ```
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/health` | Minimal unauthenticated liveness |
-| `GET` | `/v1/catalog` | Deterministic published snapshot |
-| `POST` | `/v1/uploads` | Create or recover an upload session |
-| `PUT` | `/v1/uploads/{id}/content` | Stream and verify declared bytes |
-| `POST` | `/v1/uploads/{id}/publish` | Publish a verified immutable version |
-| `GET` | `/v1/datasets/{id}/artifacts/{format}/{version}/download` | Download immutable bytes with Range support |
+## HTTP API
 
-The server returns `401` for a missing, malformed, unknown, or revoked key;
-`503` when no active key exists; and `429` with `Retry-After` when a rate limit
-is exceeded.
+| Access | Method | Path | Purpose |
+|---|---|---|---|
+| Public | `GET` | `/health` | Minimal liveness |
+| Public | `GET` | `/public/api/datasets` | Visible Datasets and external mirrors |
+| Key | `GET` | `/auth/session` | Resolve API-key role |
+| User/Admin | `GET` | `/v1/catalog` | Local artifact catalog |
+| User/Admin | `GET` | `/v1/datasets/{id}/artifacts/{format}/{version}/download` | Direct authenticated download |
+| User/Admin | `POST` | `/v1/datasets/{id}/artifacts/{format}/{version}/download-ticket` | Browser download ticket |
+| Admin | `POST` | `/v1/uploads` | Create or recover upload session |
+| Admin | `PUT` | `/v1/uploads/{id}/content` | Stream and verify bytes |
+| Admin | `POST` | `/v1/uploads/{id}/publish` | Publish immutable version |
+| Admin | `*` | `/admin/api/*` | Controlled administration |
 
-## Security controls
-
-- every `/v1/*` route requires an active key;
-- independent per-key and failed-authentication rate limits;
-- JSON and streaming upload size enforcement, including `Content-Length`;
-- identifiers, metadata, storage paths, checksums and immutable versions are
-  validated server-side;
-- structured security audit events never include credentials;
-- the container is non-root with a read-only root filesystem, no Linux
-  capabilities and `no-new-privileges`;
-- Compose limits memory, CPU and process count;
-- the runtime image contains only Flask and Gunicorn dependencies.
-
-The default limits are configurable in `.env`: `IVINS_MAX_UPLOAD_BYTES`,
-`IVINS_MAX_JSON_BYTES`, `IVINS_REQUESTS_PER_MINUTE`,
-`IVINS_AUTH_ATTEMPTS_PER_MINUTE`, `IVINS_AUTH_FAILURES_PER_MINUTE`,
-`IVINS_MEMORY_LIMIT`, `IVINS_CPU_LIMIT` and `IVINS_PIDS_LIMIT`.
+Public catalog and download-ticket redemption endpoints have independent
+per-address rate limits.
 
 ## Storage and backup
 
-The database defaults to `var/catalog.sqlite3`; every `.bag` and `.zip` artifact
-is a direct child of the single `var/bags/` directory, and incomplete uploads
-are below `var/staging/`. Back up and
-restore the entire `var/` tree as one unit. Restrict host filesystem access to
-the service administrator, `SYSTEM`, and the Docker runtime.
+The database defaults to `var/catalog.sqlite3`. Every local `.bag` and `.zip`
+artifact is a direct child of `var/bags/`; incomplete uploads are under
+`var/staging/`. Back up and restore the complete `var/` tree as one unit.
 
-Published `(dataset_id, format, version)` identities are immutable. Public
-metadata rejects credential, token, secret and internal path fields at any
-nesting depth.
+Published `(dataset_id, format, version)` identities remain immutable. An
+admin may migrate legacy nested v2 paths into the flat BAG directory only after
+server-side size and SHA-256 verification.
 
-## Upgrade from v2.0
+## Upgrade from v2.1
 
-Back up `var/` before the upgrade. Existing API keys are automatically assigned
-the `admin` role. After starting v2.1, open **BAG-файли** in `/admin` and run
-**Мігрувати legacy storage**. A file is moved only when it is a regular file
-below `IVINS_DATA_ROOT`, its stored size and SHA-256 still match, and the flat
-target does not exist. The UI reports the migrated and skipped counts; the API
-response includes a reason for each skipped item.
-
-## Upgrade from v1
-
-Version 2.0.0 is intentionally breaking:
-
-1. Pull/build the v2 image while the old service remains available.
-2. Remove `IVINS_API_KEY` from `.env`; it is not migrated.
-3. Preserve and back up the existing `var/` directory.
-4. Run `api_keys.py create` against that same data directory.
-5. Start v2 and update clients to send `Authorization: Bearer <key>` on every
-   `/v1/*` request, including catalog and downloads.
-6. Confirm `/health` reports `server_version: 2.1.0` and
+1. Back up the complete `var/` directory.
+2. Deploy the v3 image against the same data directory.
+3. Existing `admin` keys remain admins; `reader` and `publisher` keys are
+   migrated to `user`.
+4. Review the seeded public Datasets and mirrors in `/admin`.
+5. Confirm `/health` reports `server_version: 3.0.0`, `schema_version: 1.0`, and
    `key_store_ready: true`.
 
 ## Verification
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-.venv\Scripts\python -m unittest discover -s tests -v
-
 docker compose config --quiet
 docker compose build
-docker scout cves ivins-mav-dataset-server:2.1.0 `
+docker run --rm --entrypoint python `
+  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.0.0 `
+  -m unittest discover -s tests -v
+
+docker scout cves ivins-mav-dataset-server:3.0.0 `
   --only-severity critical,high
 ```
 
-The normative catalog schema and fixture remain in [`contract/`](contract/).
+The normative local-artifact contract remains under [`contract/`](contract/).

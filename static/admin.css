@@ -33,7 +33,7 @@ label { display: block; margin-bottom: 7px; color: #cfe0da; font-size: .84rem; f
 input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 11px; background: #0b1512; color: var(--text); padding: 11px 13px; outline: none; }
 input:focus, select:focus, textarea:focus, button:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79, 224, 157, .16); }
 textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-.button { border: 1px solid var(--line); border-radius: 10px; padding: 10px 15px; background: var(--surface-2); color: var(--text); font-weight: 750; }
+.button { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 15px; background: var(--surface-2); color: var(--text); font-weight: 750; text-decoration: none; }
 .button:hover { border-color: #3c5d53; transform: translateY(-1px); }
 .button.primary { border-color: var(--accent); background: var(--accent); color: #062217; }
 .button.ghost { background: transparent; }
@@ -87,6 +87,10 @@ tr:last-child td { border-bottom: 0; }
 dialog { width: min(680px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(5px); }
 .dialog-card { display: grid; gap: 14px; padding: 10px; }
+.dialog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dialog-grid .wide { grid-column: 1 / -1; }
+.check-row { display: flex; align-items: center; gap: 9px; margin: 4px 0; }
+.check-row input { width: auto; }
 .secret-value { display: block; padding: 18px; border: 1px dashed #3e675a; border-radius: 12px; background: #08120f; user-select: all; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 8px; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: 440px; padding: 14px 18px; border: 1px solid #3f695a; border-radius: 12px; background: #142a22; box-shadow: var(--shadow); }
@@ -107,4 +111,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(5px); }
   .storage-panel, .form-grid, .register-grid { grid-template-columns: 1fr; }
   .register-grid .wide { grid-column: auto; }
   .dialog-actions { flex-direction: column; }
+  .dialog-grid { grid-template-columns: 1fr; }
+  .dialog-grid .wide { grid-column: auto; }
 }

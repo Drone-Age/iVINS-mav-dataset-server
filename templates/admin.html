@@ -35,6 +35,7 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <a class="button ghost" href="/">Публічний сайт</a>
         <span class="status-pill"><span class="status-dot"></span><span id="serverStatus">Перевірка…</span></span>
         <span class="key-pill" id="currentKey"></span>
         <button class="button ghost" id="refreshButton" type="button">Оновити</button>
@@ -44,6 +45,7 @@
 
     <nav class="tabbar" aria-label="Адміністративні розділи">
       <button class="tab active" data-view="overview" type="button">Огляд</button>
+      <button class="tab" data-view="datasets" type="button">Datasets</button>
       <button class="tab" data-view="keys" type="button">Ключі</button>
       <button class="tab" data-view="uploads" type="button">Uploads</button>
       <button class="tab" data-view="artifacts" type="button">Artifacts</button>
@@ -59,6 +61,8 @@
           <article class="metric"><span>Активні ключі</span><strong id="metricKeys">—</strong></article>
           <article class="metric"><span>Uploads</span><strong id="metricUploads">—</strong></article>
           <article class="metric"><span>Artifacts</span><strong id="metricArtifacts">—</strong></article>
+          <article class="metric"><span>Datasets</span><strong id="metricDatasets">—</strong></article>
+          <article class="metric"><span>Mirrors</span><strong id="metricMirrors">—</strong></article>
           <article class="metric"><span>BAG-файли</span><strong id="metricBags">—</strong></article>
           <article class="metric"><span>Обсяг BAG</span><strong id="metricBytes">—</strong></article>
           <article class="metric warning"><span>Відсутні файли</span><strong id="metricMissing">—</strong></article>
@@ -70,13 +74,21 @@
         </article>
       </section>
 
+      <section class="view" id="view-datasets" aria-labelledby="datasetsTitle" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">Public catalog</p><h2 id="datasetsTitle">Datasets</h2></div>
+          <button class="button primary" id="newDatasetButton" type="button">Додати Dataset</button>
+        </div>
+        <div class="table-panel"><table><thead><tr><th>ID</th><th>Сімейство</th><th>Назва</th><th>Вимір</th><th>Mirrors</th><th>Local</th><th>Видимість</th><th></th></tr></thead><tbody id="datasetsBody"></tbody></table></div>
+      </section>
+
       <section class="view" id="view-keys" aria-labelledby="keysTitle" hidden>
         <div class="section-heading">
           <div><p class="eyebrow">Доступ</p><h2 id="keysTitle">API-ключі</h2></div>
         </div>
         <form class="panel form-grid" id="createKeyForm">
           <div><label for="keyName">Назва</label><input id="keyName" required maxlength="64" placeholder="publishing-agent"></div>
-          <div><label for="keyRole">Роль</label><select id="keyRole"><option value="reader">reader</option><option value="publisher">publisher</option><option value="admin">admin</option></select></div>
+          <div><label for="keyRole">Роль</label><select id="keyRole"><option value="user">user</option><option value="admin">admin</option></select></div>
           <button class="button primary align-end" type="submit">Створити ключ</button>
         </form>
         <div class="table-panel"><table><thead><tr><th>ID</th><th>Назва</th><th>Роль</th><th>Створено</th><th>Статус</th><th></th></tr></thead><tbody id="keysBody"></tbody></table></div>
@@ -127,6 +139,37 @@
       <label for="metadataValue">Public metadata (JSON)</label>
       <textarea id="metadataValue" rows="12" required></textarea>
       <div class="dialog-actions"><button class="button primary" type="submit">Зберегти</button><button class="button ghost" id="cancelMetadata" type="button">Скасувати</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="datasetDialog">
+    <form class="dialog-card" id="datasetForm">
+      <p class="eyebrow">Public Dataset</p>
+      <h2 id="datasetDialogTitle">Новий Dataset</h2>
+      <div class="dialog-grid">
+        <div><label for="datasetId">ID</label><input id="datasetId" required placeholder="e.1.1.e"></div>
+        <div><label for="datasetFamily">Сімейство</label><input id="datasetFamily" required placeholder="EuRoC MAV"></div>
+        <div><label for="datasetName">Назва</label><input id="datasetName" required placeholder="V1_01_easy"></div>
+        <div><label for="datasetMeasurement">Length / Size</label><input id="datasetMeasurement" placeholder="58 m"></div>
+        <div class="wide"><label for="datasetDescription">Опис</label><textarea id="datasetDescription" rows="3"></textarea></div>
+        <div class="wide"><label for="datasetHomepage">Homepage URL</label><input id="datasetHomepage" type="url"></div>
+        <div class="wide"><label for="datasetGroundTruth">Ground truth URL</label><input id="datasetGroundTruth" type="url"></div>
+        <div class="wide"><label for="datasetConfig">Config URL</label><input id="datasetConfig" type="url"></div>
+        <label class="check-row"><input id="datasetVisible" type="checkbox" checked> Показувати гостям</label>
+      </div>
+      <div class="dialog-actions"><button class="button primary" type="submit">Зберегти</button><button class="button ghost" id="cancelDataset" type="button">Скасувати</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="mirrorDialog">
+    <form class="dialog-card" id="mirrorForm">
+      <p class="eyebrow">External mirror</p>
+      <h2 id="mirrorDialogTitle">Нове дзеркало</h2>
+      <label for="mirrorFormat">Формат</label><select id="mirrorFormat"><option value="rosbag">rosbag</option><option value="rosbag2">rosbag2</option></select>
+      <label for="mirrorLabel">Назва</label><input id="mirrorLabel" required placeholder="ETH Zürich"></label>
+      <label for="mirrorUrl">HTTP/HTTPS URL</label><input id="mirrorUrl" type="url" required placeholder="https://mirror.example/file.bag"></label>
+      <label class="check-row"><input id="mirrorVerified" type="checkbox"> Перевірене дзеркало</label>
+      <div class="dialog-actions"><button class="button primary" type="submit">Додати</button><button class="button ghost" id="cancelMirror" type="button">Скасувати</button></div>
     </form>
   </dialog>
 
