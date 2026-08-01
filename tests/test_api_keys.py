@@ -4,6 +4,7 @@
 import io
 import json
 import os
+import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -33,12 +34,14 @@ class ApiKeyCliTest(unittest.TestCase):
         self.assertEqual(0, code, errors)
         created = json.loads(output)
         token, key_id = created["api_key"], created["key_id"]
+        self.assertEqual("admin", created["role"])
         self.assertTrue(token.startswith(f"ivins_{key_id}_"))
 
         code, output, errors = self.run_cli("list")
         self.assertEqual(0, code, errors)
         listed = json.loads(output)
         self.assertEqual(key_id, listed["keys"][0]["id"])
+        self.assertEqual("admin", listed["keys"][0]["role"])
         self.assertNotIn("api_key", output)
         self.assertNotIn(token.encode(), self.database.read_bytes())
 
@@ -51,6 +54,33 @@ class ApiKeyCliTest(unittest.TestCase):
         code, _, errors = self.run_cli("create", "--name", "../unsafe")
         self.assertEqual(2, code)
         self.assertIn("safe characters", errors)
+
+    def test_migrates_v2_key_table_to_admin_role(self):
+        database = sqlite3.connect(self.database)
+        database.execute(
+            "CREATE TABLE api_keys (id TEXT PRIMARY KEY,name TEXT NOT NULL,"
+            "secret_digest TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            "revoked_at TEXT)"
+        )
+        database.execute(
+            "INSERT INTO api_keys(id,name,secret_digest) VALUES(?,?,?)",
+            ("0123456789abcdef", "legacy", "0" * 64),
+        )
+        database.commit()
+        database.close()
+
+        keys = api_keys.list_api_keys()
+        self.assertEqual("admin", keys[0]["role"])
+
+    def test_cli_creates_scoped_key(self):
+        code, output, errors = self.run_cli(
+            "create", "--name", "download-client", "--role", "reader"
+        )
+        self.assertEqual(0, code, errors)
+        created = json.loads(output)
+        self.assertEqual("reader", created["role"])
+        identity = api_keys.authenticate_api_key(created["api_key"])
+        self.assertEqual("reader", identity.role)
 
 
 if __name__ == "__main__":

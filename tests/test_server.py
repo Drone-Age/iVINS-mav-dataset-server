@@ -17,6 +17,7 @@ class ServerTest(unittest.TestCase):
         self.database = Path(self.temporary.name) / "catalog.sqlite3"
         os.environ["IVINS_DATA_ROOT"] = self.temporary.name
         os.environ["IVINS_DATABASE"] = str(self.database)
+        os.environ["IVINS_BAG_ROOT"] = str(Path(self.temporary.name) / "bags")
         os.environ["IVINS_REQUESTS_PER_MINUTE"] = "1000"
         os.environ["IVINS_AUTH_ATTEMPTS_PER_MINUTE"] = "1000"
         os.environ["IVINS_AUTH_FAILURES_PER_MINUTE"] = "1000"
@@ -53,7 +54,7 @@ class ServerTest(unittest.TestCase):
     def test_health_is_minimal_and_all_v1_reads_require_a_key(self):
         health = self.client.get("/health")
         self.assertEqual(200, health.status_code)
-        self.assertEqual("2.0.0", health.json["server_version"])
+        self.assertEqual("2.1.0", health.json["server_version"])
         self.assertTrue(health.json["key_store_ready"])
         self.assertEqual(401, self.client.get("/v1/catalog").status_code)
         self.assertEqual(200, self.get("/v1/catalog").status_code)
@@ -107,6 +108,10 @@ class ServerTest(unittest.TestCase):
             f"/v1/uploads/{upload_id}/publish", headers=self.auth
         )
         self.assertEqual(200, published.status_code, published.json)
+        with server.database() as db:
+            stored = Path(db.execute("SELECT storage_path FROM artifacts").fetchone()[0])
+        self.assertEqual(Path(os.environ["IVINS_BAG_ROOT"]).resolve(), stored.parent)
+        self.assertEqual(stored.parent, stored.resolve().parent)
         snapshot = self.get("/v1/catalog").json
         self.assertEqual("1.0", snapshot["schema_version"])
         self.assertEqual(sha, snapshot["datasets"][0]["artifacts"][0]["sha256"])

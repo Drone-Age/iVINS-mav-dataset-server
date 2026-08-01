@@ -14,6 +14,8 @@ RUN pip install --no-cache-dir --requirement requirements.txt \
     && adduser -S -D -H -u 10001 -G catalog catalog
 
 COPY --chown=catalog:catalog server.py api_keys.py ./
+COPY --chown=catalog:catalog templates ./templates
+COPY --chown=catalog:catalog static ./static
 
 USER 10001:10001
 

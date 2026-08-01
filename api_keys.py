@@ -13,10 +13,18 @@ import secrets
 import sqlite3
 import sys
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 
 KEY_RE = re.compile(r"^ivins_([0-9a-f]{16})_([A-Za-z0-9_-]{43})$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$")
+ROLES = {"admin", "publisher", "reader"}
+
+
+@dataclass(frozen=True)
+class KeyIdentity:
+    key_id: str
+    role: str
 
 
 def data_root() -> Path:
@@ -40,11 +48,16 @@ def connect() -> sqlite3.Connection:
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           secret_digest TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'admin',
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           revoked_at TEXT
         )
         """
     )
+    columns = {row[1] for row in db.execute("PRAGMA table_info(api_keys)")}
+    if "role" not in columns:
+        db.execute("ALTER TABLE api_keys ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'")
+    db.commit()
     return db
 
 
@@ -62,18 +75,20 @@ def _digest(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_api_key(name: str) -> tuple[str, str]:
+def create_api_key(name: str, role: str = "admin") -> tuple[str, str]:
     """Create a high-entropy key and return (key_id, plaintext_token) once."""
     if not NAME_RE.fullmatch(name):
         raise ValueError("name must be 1-64 safe characters")
+    if role not in ROLES:
+        raise ValueError("role must be admin, publisher, or reader")
     with connection() as db:
         for _ in range(10):
             key_id = secrets.token_hex(8)
             token = f"ivins_{key_id}_{secrets.token_urlsafe(32)}"
             try:
                 db.execute(
-                    "INSERT INTO api_keys(id,name,secret_digest) VALUES(?,?,?)",
-                    (key_id, name, _digest(token)),
+                    "INSERT INTO api_keys(id,name,secret_digest,role) VALUES(?,?,?,?)",
+                    (key_id, name, _digest(token), role),
                 )
             except sqlite3.IntegrityError:
                 continue
@@ -84,7 +99,7 @@ def create_api_key(name: str) -> tuple[str, str]:
 def list_api_keys() -> list[dict[str, object]]:
     with connection() as db:
         rows = db.execute(
-            "SELECT id,name,created_at,revoked_at FROM api_keys ORDER BY created_at,id"
+            "SELECT id,name,role,created_at,revoked_at FROM api_keys ORDER BY created_at,id"
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -101,6 +116,27 @@ def revoke_api_key(key_id: str) -> bool:
     return result.rowcount == 1
 
 
+def revoke_api_key_guarded(key_id: str) -> str:
+    """Revoke from Web administration without allowing last-admin lockout."""
+    if not re.fullmatch(r"[0-9a-f]{16}", key_id):
+        return "not_found"
+    with connection() as db:
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute(
+            "SELECT role FROM api_keys WHERE id=? AND revoked_at IS NULL", (key_id,)
+        ).fetchone()
+        if not row:
+            return "not_found"
+        if row["role"] == "admin":
+            count = db.execute(
+                "SELECT COUNT(*) FROM api_keys WHERE role='admin' AND revoked_at IS NULL"
+            ).fetchone()[0]
+            if count <= 1:
+                return "last_admin"
+        db.execute("UPDATE api_keys SET revoked_at=CURRENT_TIMESTAMP WHERE id=?", (key_id,))
+    return "revoked"
+
+
 def active_key_count() -> int:
     with connection() as db:
         row = db.execute(
@@ -109,19 +145,45 @@ def active_key_count() -> int:
     return int(row["count"])
 
 
-def verify_api_key(token: str) -> str | None:
+def authenticate_api_key(token: str) -> KeyIdentity | None:
     match = KEY_RE.fullmatch(token)
     if not match:
         return None
     key_id = match.group(1)
     with connection() as db:
         row = db.execute(
-            "SELECT secret_digest FROM api_keys WHERE id=? AND revoked_at IS NULL",
+            "SELECT secret_digest,role FROM api_keys WHERE id=? AND revoked_at IS NULL",
             (key_id,),
         ).fetchone()
     candidate = _digest(token)
     expected = row["secret_digest"] if row else "0" * 64
-    return key_id if row and hmac.compare_digest(candidate, expected) else None
+    if not row or not hmac.compare_digest(candidate, expected):
+        return None
+    role = row["role"] if row["role"] in ROLES else "reader"
+    return KeyIdentity(key_id=key_id, role=role)
+
+
+def verify_api_key(token: str) -> str | None:
+    identity = authenticate_api_key(token)
+    return identity.key_id if identity else None
+
+
+def active_admin_count() -> int:
+    with connection() as db:
+        row = db.execute(
+            "SELECT COUNT(*) AS count FROM api_keys "
+            "WHERE revoked_at IS NULL AND role='admin'"
+        ).fetchone()
+    return int(row["count"])
+
+
+def key_metadata(key_id: str) -> dict[str, object] | None:
+    with connection() as db:
+        row = db.execute(
+            "SELECT id,name,role,created_at,revoked_at FROM api_keys WHERE id=?",
+            (key_id,),
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,6 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     create = commands.add_parser("create", help="create and reveal a new key once")
     create.add_argument("--name", required=True, help="administrative key label")
+    create.add_argument("--role", choices=sorted(ROLES), default="admin")
     commands.add_parser("list", help="list key metadata without secrets")
     revoke = commands.add_parser("revoke", help="revoke a key immediately")
     revoke.add_argument("key_id", help="16-character key id")
@@ -141,12 +204,13 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "create":
         try:
-            key_id, token = create_api_key(args.name)
+            key_id, token = create_api_key(args.name, args.role)
         except ValueError as exc:
             print(json.dumps({"error": str(exc)}), file=sys.stderr)
             return 2
         print(json.dumps({
             "key_id": key_id,
+            "role": args.role,
             "api_key": token,
             "warning": "The API key is shown once and is not stored in plaintext.",
         }))
