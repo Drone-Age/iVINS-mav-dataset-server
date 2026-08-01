@@ -1,7 +1,11 @@
 .git
+.gitignore
 .env
-tests
+.coverage
+.venv
 __pycache__
+tests
+var
 *.py[cod]
 *.bag
 *.db3
