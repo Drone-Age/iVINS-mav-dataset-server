@@ -2,14 +2,15 @@
 
 [Українська версія](distribution-2.0.0.uk.md)
 
-Date: 2026-08-02. Source branch: `migration/datasetsmanager-server-4.0.0`.
+Date: 2026-08-02. Source: reviewed `main` commit
+`9f81c90a514bf59841b3e7c1754e72341821c32d`.
 
 ## Artifacts
 
 | Package | Bytes | SHA-256 |
 |---|---:|---|
-| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_docker-linux-amd64.zip` | 18,965,131 | `547571ed8c672f235cefecc8cacb4e3c256e941f24f4df77dcc2bec7f9f075ab` |
-| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_windows-x64.zip` | 17,773,736 | `b2db19889b02f4c2d6038b58eafc03f98509bd2b134b573792155636a9341979` |
+| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_docker-linux-amd64.zip` | 18,965,360 | `9dc12edfd2ad0adb407967335141877d499b169de5871c323df8b92ff4a68ef9` |
+| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_windows-x64.zip` | 17,774,021 | `314821581fd5685baa99b6cc8b79897b3fea5a291f1dca3c61ee9af1a6d3a0a3` |
 
 Both ZIP files passed their sidecar and internal `SHA256SUMS` checks, package
 manifest JSON Schema validation, and an archive scan proving that no `.git`
@@ -21,7 +22,9 @@ Both builders now package the single canonical schema from
 
 - 50 Backend/Frontend/Distribution/documentation unit and security tests passed.
 - Development and release Compose configurations validated successfully.
-- The Docker ZIP loaded its local image and deployed without Git on
+- The Docker ZIP, rebuilt after merge from the reviewed `main`, loaded image
+  `sha256:f112d6943a1a8e7ab9d4b343805415ab6c8180a710a4ff650b8576df970310c8`
+  and deployed without Git on
   `127.0.0.1:18082`; the public catalog returned 57 Datasets, protected `/v1`
   returned `401` without a key, a server-generated admin key authenticated, and
   its plaintext was absent from SQLite.
@@ -40,7 +43,7 @@ Both builders now package the single canonical schema from
 
 ## Gates still open
 
-This is local package acceptance, not production approval. A clean Windows VM
-test, a clean offline Docker-host test, the verified `F:` runtime migration,
-production routing cutover, merge, tags, and GitHub releases remain open. They
-require the Change Authority decision recorded for the migration Change.
+This is local package acceptance, not post-production review. Merge and the
+Change Authority decision are complete. A clean Windows VM test, a clean
+offline Docker-host test, the verified `F:` runtime migration, production
+cutover, tags, and GitHub releases remain open.
