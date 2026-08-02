@@ -46,7 +46,7 @@ if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
     Write-Host "Created $EnvFile from .env.example."
 }
 
-$dataValue = Get-EnvValue -Name "IVINS_DATA_HOST_ROOT" -Default "./var"
+$dataValue = Get-EnvValue -Name "DSM_DATA_HOST_ROOT" -Default "./var"
 $dataRoot = if ([System.IO.Path]::IsPathRooted($dataValue)) {
     [System.IO.Path]::GetFullPath($dataValue)
 } else {
@@ -67,9 +67,9 @@ $base = @("compose", "--env-file", $EnvFile, "-f", $composeFile)
 Invoke-Docker -Arguments ($base + @("config", "--quiet"))
 Invoke-Docker -Arguments ($base + @("up", "-d"))
 
-$port = Get-EnvValue -Name "IVINS_PORT" -Default "8080"
+$port = Get-EnvValue -Name "DSM_PORT" -Default "8080"
 if ($port -notmatch '^[0-9]{1,5}$' -or [int]$port -lt 1 -or [int]$port -gt 65535) {
-    throw "IVINS_PORT is invalid: $port"
+    throw "DSM_PORT is invalid: $port"
 }
 $baseUri = "http://127.0.0.1:$port"
 $deadline = [DateTime]::UtcNow.AddSeconds($HealthTimeoutSeconds)
@@ -97,7 +97,7 @@ foreach ($component in @("backend", "frontend", "process", "distribution")) {
     }
 }
 
-Write-Host "iVINS Dataset Server is healthy at $baseUri."
+Write-Host "DataSetsManager Server is healthy at $baseUri."
 Write-Host "Backend $($deployed.backend), Frontend $($deployed.frontend), Process $($deployed.process), Distribution $($deployed.distribution)."
 if (-not $health.key_store_ready) {
     Write-Warning "No active API key exists. Run .\new-admin-key.ps1 locally."

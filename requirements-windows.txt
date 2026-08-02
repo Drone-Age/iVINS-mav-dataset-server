@@ -1,0 +1,4 @@
+Flask>=3.1,<4
+waitress>=3.0,<4
+pywin32>=310,<400
+pyinstaller>=6.0,<7

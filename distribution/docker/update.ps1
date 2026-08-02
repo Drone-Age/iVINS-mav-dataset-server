@@ -29,7 +29,7 @@ if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
     throw "Environment file is missing: $EnvFile. Use install.ps1 for a first installation."
 }
 
-$dataValue = Get-EnvValue -Name "IVINS_DATA_HOST_ROOT" -Default "./var"
+$dataValue = Get-EnvValue -Name "DSM_DATA_HOST_ROOT" -Default "./var"
 $dataRoot = if ([System.IO.Path]::IsPathRooted($dataValue)) {
     [System.IO.Path]::GetFullPath($dataValue)
 } else {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Server-local API key administration for iVINS Dataset Server."""
+"""Server-local API key administration for DataSetsManager Server."""
 
 from __future__ import annotations
 
@@ -16,7 +16,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-KEY_RE = re.compile(r"^ivins_([0-9a-f]{16})_([A-Za-z0-9_-]{43})$")
+import settings
+
+KEY_RE = re.compile(r"^(?:dsm|ivins)_([0-9a-f]{16})_([A-Za-z0-9_-]{43})$")
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,63}$")
 ROLES = {"admin", "user"}
 
@@ -28,11 +30,11 @@ class KeyIdentity:
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("IVINS_DATA_ROOT", "var")).resolve()
+    return settings.path("DATA_ROOT", "var")
 
 
 def database_path() -> Path:
-    return Path(os.environ.get("IVINS_DATABASE", data_root() / "catalog.sqlite3")).resolve()
+    return settings.path("DATABASE", data_root() / "catalog.sqlite3")
 
 
 def connect() -> sqlite3.Connection:
@@ -87,7 +89,7 @@ def create_api_key(name: str, role: str = "admin") -> tuple[str, str]:
     with connection() as db:
         for _ in range(10):
             key_id = secrets.token_hex(8)
-            token = f"ivins_{key_id}_{secrets.token_urlsafe(32)}"
+            token = f"dsm_{key_id}_{secrets.token_urlsafe(32)}"
             try:
                 db.execute(
                     "INSERT INTO api_keys(id,name,secret_digest,role) VALUES(?,?,?,?)",

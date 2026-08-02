@@ -1,18 +1,21 @@
-# iVINS Distribution
+# DataSetsManager Distribution
 
-Distribution is the independently versioned delivery layer for iVINS Dataset
+[Українська версія](DISTRIBUTION.uk.md)
+
+Distribution is the independently versioned delivery layer for DataSetsManager
 Server. It packages compatible Backend, Frontend and Process versions into one
 installable artifact without changing their component versions.
 
-Current Distribution version: **1.0.0**
+Current Distribution version: **2.0.0**
 
 ## Package formats
 
-- `docker-bundle`: implemented in Distribution 1.0.0. Deployment requires
+- `docker-bundle`: offline OCI image and Compose deployment.
   Docker Engine with Compose but does not require Git or Internet access.
-- `windows-installer`: reserved for a future native Windows Service installer.
-  It will reuse the same package manifest, compatibility rules, persistent data
-  contract and server-generated API-key policy.
+- `windows-portable`: standalone EXE, Windows Service scripts, checksums and
+  persistent data contract; deployment requires neither Git nor Docker.
+- `windows-msi`: reserved for a future signed MSI wrapper around the same
+  service and package-manifest contract.
 
 Adding a compatible package format increments Distribution MINOR. Breaking the
 package manifest, installer command contract or upgrade/rollback behavior
@@ -33,6 +36,14 @@ The generated ZIP contains:
 The package never contains API keys, the SQLite database, BAG files or other
 runtime data. The data directory remains external and persistent across
 Distribution changes.
+
+## Portable Windows Service package
+
+Build on Windows with `tools/build-windows-package.ps1`. The script creates a
+PyInstaller executable containing the Python runtime, installs Waitress as the
+HTTP service host, and packages install/uninstall/verify/key-management tools.
+Runtime data defaults to `%ProgramData%\DataSetsManager\Server\var`; all BAG
+files remain direct children of its `bags` directory.
 
 ## Build
 

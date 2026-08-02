@@ -149,22 +149,25 @@
     const elements = root.querySelectorAll ? root.querySelectorAll("[aria-label], [placeholder], [title]") : [];
     elements.forEach(translateAttributes);
     document.documentElement.lang = language;
-    document.title = language === "en" ? "iVINS Dataset Server" : "Сервер наборів даних iVINS";
+    document.title = language === "en" ? "DataSetsManager Server" : "Сервер DataSetsManager";
     document.querySelectorAll("[data-language-selector]").forEach((selector) => { selector.value = language; });
   }
 
   function setLanguage(value) {
     language = value === "en" ? "en" : "uk";
     apply(document);
+    window.dispatchEvent(new CustomEvent("dsm-languagechange", { detail: { language } }));
     window.dispatchEvent(new CustomEvent("ivins-languagechange", { detail: { language } }));
   }
 
-  window.IVINS_I18N = {
+  window.DSM_I18N = {
     apply,
     getLanguage: () => language,
     setLanguage,
     t: (uk, en) => language === "en" ? en : uk,
   };
+  // Frontend 4.x compatibility alias; removed in Frontend 5.0.
+  window.IVINS_I18N = window.DSM_I18N;
 
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-language-selector]").forEach((selector) => {

@@ -1,10 +1,10 @@
-name: ${IVINS_COMPOSE_PROJECT:-ivins-mav-dataset-server}
+name: ${DSM_COMPOSE_PROJECT:-${IVINS_COMPOSE_PROJECT:-datasetsmanager-server}}
 
 services:
   server:
-    image: ivins-mav-dataset-server:3.3.0
+    image: datasetsmanager-server:4.0.0
     pull_policy: never
-    container_name: ${IVINS_CONTAINER_NAME:-ivins-mav-dataset-server}
+    container_name: ${DSM_CONTAINER_NAME:-${IVINS_CONTAINER_NAME:-datasetsmanager-server}}
     restart: unless-stopped
     read_only: true
     user: "10001:10001"
@@ -15,24 +15,24 @@ services:
     tmpfs:
       - /tmp:size=64m,mode=1777
     environment:
-      IVINS_DATA_ROOT: /data
-      IVINS_BAG_ROOT: /data/bags
-      IVINS_MAX_UPLOAD_BYTES: ${IVINS_MAX_UPLOAD_BYTES:-53687091200}
-      IVINS_MAX_JSON_BYTES: ${IVINS_MAX_JSON_BYTES:-65536}
-      IVINS_REQUESTS_PER_MINUTE: ${IVINS_REQUESTS_PER_MINUTE:-120}
-      IVINS_AUTH_ATTEMPTS_PER_MINUTE: ${IVINS_AUTH_ATTEMPTS_PER_MINUTE:-240}
-      IVINS_AUTH_FAILURES_PER_MINUTE: ${IVINS_AUTH_FAILURES_PER_MINUTE:-20}
-      IVINS_DOWNLOADS_PER_MINUTE: ${IVINS_DOWNLOADS_PER_MINUTE:-30}
-      IVINS_PUBLIC_REQUESTS_PER_MINUTE: ${IVINS_PUBLIC_REQUESTS_PER_MINUTE:-120}
+      DSM_DATA_ROOT: /data
+      DSM_BAG_ROOT: /data/bags
+      DSM_MAX_UPLOAD_BYTES: ${DSM_MAX_UPLOAD_BYTES:-${IVINS_MAX_UPLOAD_BYTES:-53687091200}}
+      DSM_MAX_JSON_BYTES: ${DSM_MAX_JSON_BYTES:-${IVINS_MAX_JSON_BYTES:-65536}}
+      DSM_REQUESTS_PER_MINUTE: ${DSM_REQUESTS_PER_MINUTE:-${IVINS_REQUESTS_PER_MINUTE:-120}}
+      DSM_AUTH_ATTEMPTS_PER_MINUTE: ${DSM_AUTH_ATTEMPTS_PER_MINUTE:-${IVINS_AUTH_ATTEMPTS_PER_MINUTE:-240}}
+      DSM_AUTH_FAILURES_PER_MINUTE: ${DSM_AUTH_FAILURES_PER_MINUTE:-${IVINS_AUTH_FAILURES_PER_MINUTE:-20}}
+      DSM_DOWNLOADS_PER_MINUTE: ${DSM_DOWNLOADS_PER_MINUTE:-${IVINS_DOWNLOADS_PER_MINUTE:-30}}
+      DSM_PUBLIC_REQUESTS_PER_MINUTE: ${DSM_PUBLIC_REQUESTS_PER_MINUTE:-${IVINS_PUBLIC_REQUESTS_PER_MINUTE:-120}}
     ports:
-      - "${IVINS_BIND_ADDRESS:-127.0.0.1}:${IVINS_PORT:-8080}:8080"
+      - "${DSM_BIND_ADDRESS:-${IVINS_BIND_ADDRESS:-127.0.0.1}}:${DSM_PORT:-${IVINS_PORT:-8080}}:8080"
     volumes:
       - type: bind
-        source: ${IVINS_DATA_HOST_ROOT:-./var}
+        source: ${DSM_DATA_HOST_ROOT:-${IVINS_DATA_HOST_ROOT:-./var}}
         target: /data
-    mem_limit: ${IVINS_MEMORY_LIMIT:-1g}
-    cpus: ${IVINS_CPU_LIMIT:-1.0}
-    pids_limit: ${IVINS_PIDS_LIMIT:-128}
+    mem_limit: ${DSM_MEMORY_LIMIT:-${IVINS_MEMORY_LIMIT:-1g}}
+    cpus: ${DSM_CPU_LIMIT:-${IVINS_CPU_LIMIT:-1.0}}
+    pids_limit: ${DSM_PIDS_LIMIT:-${IVINS_PIDS_LIMIT:-128}}
     stop_grace_period: 30s
     healthcheck:
       test:

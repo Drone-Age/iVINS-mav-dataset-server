@@ -35,7 +35,7 @@ class ApiKeyCliTest(unittest.TestCase):
         created = json.loads(output)
         token, key_id = created["api_key"], created["key_id"]
         self.assertEqual("admin", created["role"])
-        self.assertTrue(token.startswith(f"ivins_{key_id}_"))
+        self.assertTrue(token.startswith(f"dsm_{key_id}_"))
 
         code, output, errors = self.run_cli("list")
         self.assertEqual(0, code, errors)
@@ -87,6 +87,16 @@ class ApiKeyCliTest(unittest.TestCase):
         with api_keys.connection() as database:
             database.execute("UPDATE api_keys SET role='reader'")
         self.assertEqual("user", api_keys.list_api_keys()[0]["role"])
+
+    def test_legacy_ivins_token_remains_valid(self):
+        key_id, token = api_keys.create_api_key("compatibility")
+        legacy_token = token.replace("dsm_", "ivins_", 1)
+        with api_keys.connection() as database:
+            database.execute(
+                "UPDATE api_keys SET secret_digest=? WHERE id=?",
+                (api_keys._digest(legacy_token), key_id),
+            )
+        self.assertEqual("admin", api_keys.authenticate_api_key(legacy_token).role)
 
 
 if __name__ == "__main__":

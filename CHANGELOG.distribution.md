@@ -1,5 +1,11 @@
 # Distribution changelog
 
+## 2.0.0 — 2026-08-02
+
+- Renamed OCI and bundle artifacts to `datasetsmanager-server`.
+- Added the `windows-portable` package format and reserved `windows-msi`.
+- Preserved the legacy OCI tag as a compatibility alias through Distribution 2.x.
+
 ## 1.0.0 — 2026-08-02
 
 - Established Distribution as an independently versioned component.

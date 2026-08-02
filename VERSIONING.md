@@ -4,10 +4,10 @@ The repository contains four independently versioned components:
 
 | Component | Scope | Current version | Git tag |
 |---|---|---:|---|
-| Backend | HTTP API, authentication, storage, database migrations and server runtime | 3.3.0 | `backend-v3.3.0` |
-| Frontend | Public catalog and administration Web interface | 3.3.0 | `frontend-v3.3.0` |
-| Process | Policies, permissions, prohibitions, standards and operating procedures | 1.0.0 | `process-v1.0.0` |
-| Distribution | Offline bundles, installers, package manifests and deployment automation | 1.0.0 | `distribution-v1.0.0` |
+| Backend | HTTP API, authentication, storage, database migrations and server runtime | 4.0.0 | `backend-v4.0.0` |
+| Frontend | Public catalog and administration Web interface | 4.0.0 | `frontend-v4.0.0` |
+| Process dependency | Canonical policies in `DataSetsManager/DataSetsManager` | 2.0.0 | `process-v2.0.0` |
+| Distribution | Offline bundles, installers, package manifests and deployment automation | 2.0.0 | `distribution-v2.0.0` |
 
 `versions.json` is the canonical machine-readable manifest. The Backend
 loads and validates it at startup and exposes it at `GET /versions`. The same
@@ -40,18 +40,18 @@ Compatibility constraints use npm-style SemVer ranges:
 
 ```json
 {
-  "backend": "3.3.0",
-  "frontend": "3.3.0",
-  "process": "1.0.0",
-  "distribution": "1.0.0",
+  "backend": "4.0.0",
+  "frontend": "4.0.0",
+  "process": "2.0.0",
+  "distribution": "2.0.0",
   "compatibility": {
-    "frontend_requires_backend": ">=3.3.0 <4.0.0",
-    "process_applies_to_backend": ">=3.3.0 <4.0.0",
-    "process_applies_to_frontend": ">=3.3.0 <4.0.0",
-    "process_applies_to_distribution": ">=1.0.0 <2.0.0",
-    "distribution_packages_backend": ">=3.3.0 <4.0.0",
-    "distribution_packages_frontend": ">=3.3.0 <4.0.0",
-    "distribution_requires_process": ">=1.0.0 <2.0.0"
+    "frontend_requires_backend": ">=4.0.0 <5.0.0",
+    "process_applies_to_backend": ">=4.0.0 <5.0.0",
+    "process_applies_to_frontend": ">=4.0.0 <5.0.0",
+    "process_applies_to_distribution": ">=2.0.0 <3.0.0",
+    "distribution_packages_backend": ">=4.0.0 <5.0.0",
+    "distribution_packages_frontend": ">=4.0.0 <5.0.0",
+    "distribution_requires_process": ">=2.0.0 <3.0.0"
   }
 }
 ```

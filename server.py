@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Versioned iVINS backend: public catalog and authenticated artifact storage."""
+"""DataSetsManager backend: public catalog and authenticated artifact storage."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 from flask import Flask, g, jsonify, render_template, request, send_file
 
 import api_keys
+import settings
 
 SCHEMA_VERSION = "1.0"
 SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
@@ -60,13 +61,21 @@ BACKEND_VERSION = str(VERSION_MANIFEST["backend"])
 FRONTEND_VERSION = str(VERSION_MANIFEST["frontend"])
 PROCESS_VERSION = str(VERSION_MANIFEST["process"])
 DISTRIBUTION_VERSION = str(VERSION_MANIFEST["distribution"])
-# Backward-compatible alias retained for v3 clients.
+# Backward-compatible alias retained through Backend 4.x.
 SERVER_VERSION = BACKEND_VERSION
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
-DATASET_SEED_VERSION = "2026-08-02.3"
+DATASET_SEED_VERSION = "2026-08-02.4"
+PROFILE_ALIASES = {
+    "general": "all",
+    "dev_0": "dev_01",
+    "dev_2": "dev_02",
+    "dev_3": "dev_03",
+    "dev_4": "dev_04",
+    "dev4": "dev_04",
+}
 app = Flask(__name__)
 
 
@@ -80,15 +89,15 @@ def component_versions() -> dict[str, str]:
 
 
 def data_root() -> Path:
-    return Path(os.environ.get("IVINS_DATA_ROOT", "var")).resolve()
+    return settings.path("DATA_ROOT", "var")
 
 
 def database_path() -> Path:
-    return Path(os.environ.get("IVINS_DATABASE", data_root() / "catalog.sqlite3")).resolve()
+    return settings.path("DATABASE", data_root() / "catalog.sqlite3")
 
 
 def bag_root() -> Path:
-    return Path(os.environ.get("IVINS_BAG_ROOT", data_root() / "bags")).resolve()
+    return settings.path("BAG_ROOT", data_root() / "bags")
 
 
 def seed_datasets(db: sqlite3.Connection) -> None:
@@ -206,10 +215,10 @@ def connect() -> sqlite3.Connection:
         db.execute(
             "ALTER TABLE datasets ADD COLUMN profile TEXT NOT NULL DEFAULT 'all'"
         )
-    db.execute(
-        "UPDATE datasets SET profile='all' "
-        "WHERE profile IS NULL OR profile='' OR profile='general'"
-    )
+    db.execute("UPDATE datasets SET profile='all' WHERE profile IS NULL OR profile='' OR profile='general'")
+    for legacy, canonical in PROFILE_ALIASES.items():
+        if legacy != "general":
+            db.execute("UPDATE datasets SET profile=? WHERE profile=?", (canonical, legacy))
     if profile_added:
         db.execute(
             "UPDATE datasets SET profile='dev_04' WHERE id='iv.dev.4.ff.1'"
@@ -261,11 +270,7 @@ rate_limiter = SlidingWindowLimiter()
 
 
 def int_setting(name: str, default: int) -> int:
-    try:
-        value = int(os.environ.get(name, str(default)))
-    except ValueError:
-        return default
-    return max(0, value)
+    return settings.integer(name.removeprefix("DSM_").removeprefix("IVINS_"), default)
 
 
 def audit_event(event: str, **fields: object) -> None:
@@ -286,19 +291,19 @@ def require_api_key():
     if request.path.startswith("/public/api/"):
         allowed, retry_after = rate_limiter.check(
             f"public:{request.remote_addr or 'unknown'}",
-            int_setting("IVINS_PUBLIC_REQUESTS_PER_MINUTE", 120),
+            int_setting("DSM_PUBLIC_REQUESTS_PER_MINUTE", 120),
         )
         return None if allowed else rate_limited(retry_after)
     if request.path.startswith("/downloads/"):
         allowed, retry_after = rate_limiter.check(
             f"ticket:{request.remote_addr or 'unknown'}",
-            int_setting("IVINS_DOWNLOADS_PER_MINUTE", 30),
+            int_setting("DSM_DOWNLOADS_PER_MINUTE", 30),
         )
         return None if allowed else rate_limited(retry_after)
     protected = request.path.startswith(("/v1/", "/admin/api/", "/auth/"))
     if protected:
         if request.is_json:
-            maximum = int_setting("IVINS_MAX_JSON_BYTES", 64 * 1024)
+            maximum = int_setting("DSM_MAX_JSON_BYTES", 64 * 1024)
             if request.content_length is None:
                 return error("length_required", "Content-Length is required", 411)
             if request.content_length > maximum:
@@ -306,7 +311,7 @@ def require_api_key():
 
         remote = request.remote_addr or "unknown"
         allowed, retry_after = rate_limiter.check(
-            f"preauth:{remote}", int_setting("IVINS_AUTH_ATTEMPTS_PER_MINUTE", 240)
+            f"preauth:{remote}", int_setting("DSM_AUTH_ATTEMPTS_PER_MINUTE", 240)
         )
         if not allowed:
             audit_event("preauth_rate_limited", remote=remote, path=request.path)
@@ -320,7 +325,7 @@ def require_api_key():
         identity = api_keys.authenticate_api_key(token)
         if not identity:
             allowed, retry_after = rate_limiter.check(
-                f"invalid:{remote}", int_setting("IVINS_AUTH_FAILURES_PER_MINUTE", 20)
+                f"invalid:{remote}", int_setting("DSM_AUTH_FAILURES_PER_MINUTE", 20)
             )
             if not allowed:
                 audit_event("auth_rate_limited", remote=remote, path=request.path)
@@ -331,7 +336,7 @@ def require_api_key():
             return response, status
 
         allowed, retry_after = rate_limiter.check(
-            f"key:{identity.key_id}", int_setting("IVINS_REQUESTS_PER_MINUTE", 120)
+            f"key:{identity.key_id}", int_setting("DSM_REQUESTS_PER_MINUTE", 120)
         )
         if not allowed:
             audit_event(
@@ -440,8 +445,7 @@ def normalize_profile(value: object) -> str:
     profile = value.strip()
     if not profile:
         return "all"
-    if profile == "general":
-        return "all"
+    profile = PROFILE_ALIASES.get(profile, profile)
     if len(profile) > 64 or not PROFILE_RE.fullmatch(profile):
         raise ValueError("profile must be a lowercase stable identifier")
     return profile
@@ -695,7 +699,7 @@ def create_upload():
     size, sha = body.get("size"), body.get("sha256")
     if not isinstance(size, int) or size < 0:
         return error("invalid_request", "size must be a non-negative integer", 400)
-    if size > int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3):
+    if size > int_setting("DSM_MAX_UPLOAD_BYTES", 50 * 1024**3):
         return error("payload_too_large", "artifact exceeds configured upload limit", 413)
     if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{64}", sha):
         return error("invalid_request", "sha256 must be 64 lowercase hex characters", 400)
@@ -730,7 +734,7 @@ def create_upload():
 
 @app.put("/v1/uploads/<upload_id>/content")
 def upload_content(upload_id: str):
-    limit = int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3)
+    limit = int_setting("DSM_MAX_UPLOAD_BYTES", 50 * 1024**3)
     with database() as db:
         row = db.execute("SELECT * FROM uploads WHERE id=?", (upload_id,)).fetchone()
         if not row:
@@ -1500,7 +1504,7 @@ def admin_register_bag():
     except (TypeError, ValueError) as exc:
         return error("invalid_request", str(exc), 400)
     size, digest = file_digest(path)
-    if size > int_setting("IVINS_MAX_UPLOAD_BYTES", 50 * 1024**3):
+    if size > int_setting("DSM_MAX_UPLOAD_BYTES", 50 * 1024**3):
         return error("payload_too_large", "BAG file exceeds configured limit", 413)
     try:
         with database() as db:
@@ -1553,7 +1557,9 @@ def main() -> None:
         app.logger.warning(
             "No active API key. /v1 endpoints will return 503; create one with api_keys.py."
         )
-    app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "8080")))
+    host = str(settings.value("BIND_ADDRESS", os.environ.get("HOST", "127.0.0.1")))
+    port = settings.integer("PORT", int(os.environ.get("PORT", "8080")))
+    app.run(host=host, port=port)
 
 
 if __name__ == "__main__":

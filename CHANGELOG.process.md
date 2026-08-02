@@ -1,5 +1,10 @@
 # Process changelog
 
+## 2.0.0 — 2026-08-02
+
+- Moved the canonical Process to `DataSetsManager/DataSetsManager`.
+- Retained the immutable local Process 1.0.0 snapshot for audit and rollback.
+
 ## 1.0.0 — 2026-08-02
 
 - Established high-level principles, permissions, prohibitions and standards.
