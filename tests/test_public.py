@@ -50,12 +50,14 @@ class PublicCatalogTest(unittest.TestCase):
             ],
             response.json["families"],
         )
-        self.assertEqual(["dev_04", "general"], response.json["profiles"])
+        self.assertEqual(["all", "dev_04"], response.json["profiles"])
+        self.assertEqual(["all"], response.json["profiles_by_family"]["EuRoC MAV"])
+        self.assertEqual(["dev_04"], response.json["profiles_by_family"]["iVINS"])
         euroc = next(item for item in response.json["datasets"] if item["id"] == "e.1.1.e")
         ivins = next(
             item for item in response.json["datasets"] if item["id"] == "iv.dev.4.ff.1"
         )
-        self.assertEqual("general", euroc["profile"])
+        self.assertEqual("all", euroc["profile"])
         self.assertEqual("dev_04", ivins["profile"])
         self.assertTrue(euroc["mirrors"])
         self.assertTrue(all(mirror["url"].startswith(("http://", "https://")) for mirror in euroc["mirrors"]))
@@ -72,6 +74,28 @@ class PublicCatalogTest(unittest.TestCase):
         self.assertNotIn("innerHTML", source)
         self.assertNotIn("api_key=", source.lower())
         self.assertIn("profileFilter", source)
+        self.assertIn("profiles_by_family", source)
+        self.assertIn('item.profile === "all"', source)
+        self.assertIn("siteEditMode", source)
+
+        page = self.client.get("/")
+        html = page.get_data(as_text=True)
+        page.close()
+        self.assertNotIn("Увійти за API-ключем", html)
+        self.assertNotIn("Адмін-панель", html)
+        self.assertIn("data-language-selector", html)
+        self.assertIn("Режим редагування", html)
+
+        translations = self.client.get("/static/i18n.js")
+        i18n_source = translations.get_data(as_text=True)
+        translations.close()
+        self.assertIn("Дані для", i18n_source)
+        self.assertIn("Sign in", i18n_source)
+        self.assertIn("setLanguage", i18n_source)
+        self.assertNotIn("localStorage", i18n_source)
+        self.assertNotIn("sessionStorage", i18n_source)
+        self.assertNotIn("document.cookie", i18n_source)
+        self.assertNotIn("innerHTML", i18n_source)
 
     def test_api_key_maps_to_user_or_admin(self):
         self.assertEqual(401, self.client.get("/auth/session").status_code)
@@ -102,7 +126,7 @@ class PublicCatalogTest(unittest.TestCase):
         self.assertEqual(201, created.status_code, created.json)
         public = self.client.get("/public/api/datasets").json
         item = next(item for item in public["datasets"] if item["id"] == "custom.1")
-        self.assertEqual("general", item["profile"])
+        self.assertEqual("all", item["profile"])
 
         dataset_update = {
             "family": "Custom",
@@ -115,6 +139,17 @@ class PublicCatalogTest(unittest.TestCase):
             "config_url": "",
             "visible": True,
         }
+        legacy_alias = self.client.patch(
+            "/admin/api/datasets/custom.1",
+            headers=self.admin,
+            json={**dataset_update, "profile": "general"},
+        )
+        self.assertEqual(200, legacy_alias.status_code, legacy_alias.json)
+        alias_catalog = self.client.get("/public/api/datasets").json
+        alias_item = next(
+            item for item in alias_catalog["datasets"] if item["id"] == "custom.1"
+        )
+        self.assertEqual("all", alias_item["profile"])
         invalid_profile = self.client.patch(
             "/admin/api/datasets/custom.1",
             headers=self.admin,
@@ -150,7 +185,8 @@ class PublicCatalogTest(unittest.TestCase):
         public = self.client.get("/public/api/datasets").json
         item = next(item for item in public["datasets"] if item["id"] == "custom.1")
         self.assertEqual("dev_01", item["profile"])
-        self.assertEqual(["dev_01", "dev_04", "general"], public["profiles"])
+        self.assertEqual(["all", "dev_01", "dev_04"], public["profiles"])
+        self.assertEqual(["dev_01"], public["profiles_by_family"]["Custom"])
         self.assertEqual("https://mirror.example/custom.1.bag", item["mirrors"][0]["url"])
         self.assertEqual(
             200,
@@ -203,8 +239,49 @@ class PublicCatalogTest(unittest.TestCase):
         migrated.close()
 
         self.assertIn("profile", columns)
-        self.assertEqual(("general", "must survive"), tuple(legacy))
+        self.assertEqual(("all", "must survive"), tuple(legacy))
         self.assertEqual("dev_04", ivins["profile"])
+
+    def test_v31_general_profiles_migrate_to_all_but_specific_profiles_survive(self):
+        database = sqlite3.connect(self.database)
+        database.executescript(
+            """
+            CREATE TABLE datasets (
+              id TEXT PRIMARY KEY,
+              family TEXT NOT NULL,
+              profile TEXT NOT NULL DEFAULT 'general',
+              name TEXT NOT NULL,
+              description TEXT NOT NULL DEFAULT '',
+              measurement TEXT NOT NULL DEFAULT '',
+              homepage_url TEXT,
+              ground_truth_url TEXT,
+              config_url TEXT,
+              visible INTEGER NOT NULL DEFAULT 1 CHECK(visible IN (0,1)),
+              created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO app_settings(key,value)
+            VALUES('dataset_seed_version','2026-08-02.2');
+            INSERT INTO datasets(id,family,profile,name,visible)
+            VALUES('legacy.general','Legacy','general','General flight',1);
+            INSERT INTO datasets(id,family,profile,name,visible)
+            VALUES('legacy.specific','Legacy','dev_01','Specific flight',1);
+            """
+        )
+        database.commit()
+        database.close()
+
+        migrated = server.connect()
+        profiles = dict(
+            migrated.execute(
+                "SELECT id,profile FROM datasets WHERE id LIKE 'legacy.%' ORDER BY id"
+            ).fetchall()
+        )
+        migrated.close()
+
+        self.assertEqual("all", profiles["legacy.general"])
+        self.assertEqual("dev_01", profiles["legacy.specific"])
 
     def add_local_artifact(self):
         self.bags.mkdir(exist_ok=True)

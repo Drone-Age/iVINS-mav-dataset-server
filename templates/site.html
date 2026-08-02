@@ -10,6 +10,7 @@
   <meta name="twitter:card" content="summary">
   <title>iVINS Datasets</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+  <script src="{{ url_for('static', filename='i18n.js') }}" defer></script>
   <script src="{{ url_for('static', filename='site.js') }}" defer></script>
 </head>
 <body>
@@ -23,9 +24,9 @@
       <a href="https://github.com/Drone-Age/iVINS-mav-dataset" target="_blank" rel="noopener noreferrer">Registry ↗</a>
     </nav>
     <div class="account-actions">
+      <label class="language-picker"><span class="sr-only">Мова / Language</span><select data-language-selector aria-label="Мова / Language"><option value="uk">Українська</option><option value="en">English</option></select></label>
       <span class="role-pill guest" id="rolePill">Гість</span>
-      <a class="button subtle" id="adminLink" href="/admin" hidden>Адмін-панель</a>
-      <button class="button primary" id="loginButton" type="button">Увійти за API-ключем</button>
+      <button class="button primary" id="loginButton" type="button">Увійти</button>
       <button class="button subtle" id="logoutButton" type="button" hidden>Вийти</button>
     </div>
   </header>
@@ -53,7 +54,13 @@
     <section class="catalog" id="datasets" aria-labelledby="datasetsTitle">
       <div class="section-heading">
         <div><p class="eyebrow">Public catalog</p><h2 id="datasetsTitle">Datasets</h2></div>
-        <button class="button subtle" id="refreshButton" type="button">Оновити</button>
+        <div class="catalog-actions">
+          <div class="admin-catalog-controls" id="adminCatalogControls" hidden>
+            <label class="edit-switch"><input id="siteEditMode" type="checkbox"><span>Режим редагування</span></label>
+            <button class="button primary" id="siteNewDatasetButton" type="button" hidden>Додати Dataset</button>
+          </div>
+          <button class="button subtle" id="refreshButton" type="button">Оновити</button>
+        </div>
       </div>
       <div class="filters" role="search">
         <label><span>Пошук</span><input id="searchInput" type="search" placeholder="ID або назва dataset"></label>
@@ -77,12 +84,33 @@
     <form class="login-card" id="loginForm">
       <button class="dialog-close" id="closeLogin" type="button" aria-label="Закрити">×</button>
       <p class="eyebrow">Авторизація</p>
-      <h2>Увійти за API-ключем</h2>
+      <h2>Увійти</h2>
       <p class="muted">Ключ зберігається лише в пам’яті цієї вкладки та зникає після перезавантаження.</p>
       <label><span>API-ключ</span><input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" required></label>
       <button class="button primary full" type="submit">Увійти</button>
       <p class="form-message" id="loginMessage" role="alert"></p>
       <p class="http-warning">HTTP не шифрує ключ у мережі. Не вводьте його через недовірене підключення.</p>
+    </form>
+  </dialog>
+
+  <dialog id="siteDatasetDialog">
+    <form class="dataset-editor" id="siteDatasetForm">
+      <button class="dialog-close" id="siteCancelDatasetTop" type="button" aria-label="Закрити">×</button>
+      <p class="eyebrow">Public Dataset</p>
+      <h2 id="siteDatasetDialogTitle">Новий Dataset</h2>
+      <div class="dataset-editor-grid">
+        <label><span>ID</span><input id="siteDatasetId" required placeholder="e.1.1.e"></label>
+        <label><span>Сімейство</span><input id="siteDatasetFamily" required placeholder="EuRoC MAV"></label>
+        <label><span>Профіль</span><input id="siteDatasetProfile" maxlength="64" placeholder="all або dev_01"><small>Порожнє значення автоматично стає all.</small></label>
+        <label><span>Назва</span><input id="siteDatasetName" required placeholder="V1_01_easy"></label>
+        <label><span>Length / Size</span><input id="siteDatasetMeasurement" placeholder="58 m"></label>
+        <label class="wide"><span>Опис</span><textarea id="siteDatasetDescription" rows="3"></textarea></label>
+        <label class="wide"><span>Homepage URL</span><input id="siteDatasetHomepage" type="url"></label>
+        <label class="wide"><span>Ground truth URL</span><input id="siteDatasetGroundTruth" type="url"></label>
+        <label class="wide"><span>Config URL</span><input id="siteDatasetConfig" type="url"></label>
+        <label class="check-row"><input id="siteDatasetVisible" type="checkbox" checked> <span>Показувати гостям</span></label>
+      </div>
+      <div class="dialog-actions"><button class="button primary" type="submit">Зберегти</button><button class="button subtle" id="siteCancelDataset" type="button">Скасувати</button></div>
     </form>
   </dialog>
 

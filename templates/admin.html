@@ -6,12 +6,14 @@
   <meta name="robots" content="noindex,nofollow">
   <title>iVINS Dataset Server — Admin</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+  <script src="{{ url_for('static', filename='i18n.js') }}" defer></script>
   <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
 </head>
 <body>
   <section class="login-shell" id="loginShell" aria-labelledby="loginTitle">
     <div class="login-card">
       <div class="brand-mark" aria-hidden="true">iV</div>
+      <label class="language-picker"><span>Мова / Language</span><select data-language-selector><option value="uk">Українська</option><option value="en">English</option></select></label>
       <p class="eyebrow">Dataset Server {{ server_version }}</p>
       <h1 id="loginTitle">Адміністративний доступ</h1>
       <p class="muted">Введіть API-ключ із роллю <strong>admin</strong>. Ключ зберігається лише в пам’яті цієї вкладки.</p>
@@ -35,6 +37,7 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <label class="language-picker compact"><span class="sr-only">Мова / Language</span><select data-language-selector aria-label="Мова / Language"><option value="uk">Українська</option><option value="en">English</option></select></label>
         <a class="button ghost" href="/">Публічний сайт</a>
         <span class="status-pill"><span class="status-dot"></span><span id="serverStatus">Перевірка…</span></span>
         <span class="key-pill" id="currentKey"></span>
@@ -44,8 +47,8 @@
     </header>
 
     <nav class="tabbar" aria-label="Адміністративні розділи">
-      <button class="tab active" data-view="overview" type="button">Огляд</button>
-      <button class="tab" data-view="datasets" type="button">Datasets</button>
+      <button class="tab" data-view="overview" type="button">Огляд</button>
+      <button class="tab active" data-view="datasets" type="button">Datasets</button>
       <button class="tab" data-view="keys" type="button">Ключі</button>
       <button class="tab" data-view="uploads" type="button">Uploads</button>
       <button class="tab" data-view="artifacts" type="button">Artifacts</button>
@@ -53,7 +56,7 @@
     </nav>
 
     <main class="content">
-      <section class="view active" id="view-overview" aria-labelledby="overviewTitle">
+      <section class="view" id="view-overview" aria-labelledby="overviewTitle" hidden>
         <div class="section-heading">
           <div><p class="eyebrow">Стан системи</p><h2 id="overviewTitle">Огляд</h2></div>
         </div>
@@ -74,12 +77,21 @@
         </article>
       </section>
 
-      <section class="view" id="view-datasets" aria-labelledby="datasetsTitle" hidden>
+      <section class="view active" id="view-datasets" aria-labelledby="datasetsTitle">
         <div class="section-heading">
           <div><p class="eyebrow">Public catalog</p><h2 id="datasetsTitle">Datasets</h2></div>
-          <button class="button primary" id="newDatasetButton" type="button">Додати Dataset</button>
+          <div class="dataset-mode-actions">
+            <label class="edit-switch"><input id="adminDatasetEditMode" type="checkbox"><span>Режим редагування</span></label>
+            <button class="button primary" id="newDatasetButton" type="button" hidden>Додати Dataset</button>
+          </div>
         </div>
-        <div class="table-panel"><table><thead><tr><th>ID</th><th>Сімейство</th><th>Профіль</th><th>Назва</th><th>Вимір</th><th>Mirrors</th><th>Local</th><th>Видимість</th><th></th></tr></thead><tbody id="datasetsBody"></tbody></table></div>
+        <div class="dataset-filters" role="search">
+          <label><span>Пошук</span><input id="adminDatasetSearch" type="search" placeholder="ID або назва dataset"></label>
+          <label><span>Сімейство</span><select id="adminFamilyFilter"><option value="">Усі сімейства</option></select></label>
+          <label><span>Профіль</span><select id="adminProfileFilter" disabled><option value="">Оберіть сімейство</option></select></label>
+        </div>
+        <p class="catalog-status" id="adminCatalogStatus">Завантаження каталогу…</p>
+        <div class="table-panel"><table><thead><tr><th>ID</th><th>Сімейство</th><th>Профіль</th><th>Назва</th><th>Вимір</th><th>Mirrors</th><th>Local</th><th>Видимість</th><th id="adminDatasetActionsHeader" hidden></th></tr></thead><tbody id="datasetsBody"></tbody></table></div>
       </section>
 
       <section class="view" id="view-keys" aria-labelledby="keysTitle" hidden>
@@ -149,7 +161,7 @@
       <div class="dialog-grid">
         <div><label for="datasetId">ID</label><input id="datasetId" required placeholder="e.1.1.e"></div>
         <div><label for="datasetFamily">Сімейство</label><input id="datasetFamily" required placeholder="EuRoC MAV"></div>
-        <div><label for="datasetProfile">Профіль</label><input id="datasetProfile" maxlength="64" placeholder="general або dev_01"><small>Порожнє значення автоматично стає general.</small></div>
+        <div><label for="datasetProfile">Профіль</label><input id="datasetProfile" maxlength="64" placeholder="all або dev_01"><small>Порожнє значення автоматично стає all.</small></div>
         <div><label for="datasetName">Назва</label><input id="datasetName" required placeholder="V1_01_easy"></div>
         <div><label for="datasetMeasurement">Length / Size</label><input id="datasetMeasurement" placeholder="58 m"></div>
         <div class="wide"><label for="datasetDescription">Опис</label><textarea id="datasetDescription" rows="3"></textarea></div>
