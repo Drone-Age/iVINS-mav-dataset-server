@@ -26,6 +26,22 @@ class ManifestTest(unittest.TestCase):
                     json.loads(path.read_text(encoding="utf-8"))
                 )
 
+    def test_contract_fixtures(self):
+        fixtures = {
+            "public-catalog.schema.json": "public-catalog.valid.json",
+            "release-manifest.schema.json": "release-manifest.valid.json",
+            "package-manifest.schema.json": "package-manifest.windows-msi.valid.json",
+        }
+        for schema_name, fixture_name in fixtures.items():
+            with self.subTest(schema=schema_name):
+                schema = json.loads(
+                    (ROOT / "schemas" / schema_name).read_text(encoding="utf-8")
+                )
+                value = json.loads(
+                    (ROOT / "fixtures" / fixture_name).read_text(encoding="utf-8")
+                )
+                jsonschema.validate(value, schema)
+
 
 if __name__ == "__main__":
     unittest.main()

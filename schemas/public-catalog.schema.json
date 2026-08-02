@@ -3,6 +3,21 @@
   "$id": "https://github.com/DataSetsManager/server/releases/download/schema-public-catalog-v1.0.0/public-catalog.schema.json",
   "title": "DataSetsManager Server v1 public catalog",
   "type": "object",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "version", "state", "size", "sha256", "download_url"],
+      "properties": {
+        "format": {"enum": ["rosbag", "rosbag2"]},
+        "version": {"type": "string"},
+        "state": {"const": "published"},
+        "size": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "download_url": {"type": "string", "pattern": "^/v1/"}
+      }
+    }
+  },
   "additionalProperties": false,
   "required": ["schema_version", "snapshot_version", "datasets"],
   "properties": {
@@ -25,19 +40,7 @@
           "derivable_formats": {"type": "array", "items": {"enum": ["rosbag", "rosbag2"]}},
           "artifacts": {
             "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["format", "version", "state", "size", "sha256", "download_url"],
-              "properties": {
-                "format": {"enum": ["rosbag", "rosbag2"]},
-                "version": {"type": "string"},
-                "state": {"const": "published"},
-                "size": {"type": "integer", "minimum": 0},
-                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-                "download_url": {"type": "string", "pattern": "^/v1/"}
-              }
-            }
+            "items": {"$ref": "#/$defs/artifact"}
           }
         }
       }

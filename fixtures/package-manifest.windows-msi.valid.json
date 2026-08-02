@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "distribution": {"name": "DataSetsManager Server", "version": "2.0.0"},
+  "package_format": "windows-msi",
+  "platform": {"os": "windows", "architecture": "x64"},
+  "components": {
+    "backend": "4.0.0",
+    "frontend": "4.0.0",
+    "process": "2.0.0",
+    "distribution": "2.0.0"
+  },
+  "compatibility": {"api": "/v1"},
+  "runtime": {"executable": "datasetsmanager-server.exe", "service": "DataSetsManagerServer"},
+  "entrypoints": {
+    "install": "install-service.ps1",
+    "update": "update-service.ps1",
+    "rollback": "rollback-service.ps1",
+    "verify": "verify-integrity.ps1"
+  },
+  "data": {"included": false, "persistent": true, "default_root": "F:\\Indra\\DataSetsManager-runtime\\server\\var"}
+}

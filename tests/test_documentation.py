@@ -58,6 +58,10 @@ class DocumentationTest(unittest.TestCase):
                     f"broken local link in {document.relative_to(ROOT)}: {raw_target}",
                 )
 
+    def test_architecture_has_all_five_required_views(self):
+        for path in (ROOT / "docs/architecture.md", ROOT / "docs/architecture.uk.md"):
+            self.assertEqual(5, path.read_text(encoding="utf-8").count("```mermaid"))
+
 
 if __name__ == "__main__":
     unittest.main()
