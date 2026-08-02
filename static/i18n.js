@@ -3,9 +3,8 @@
 (() => {
   const copy = {
     "iVINS Datasets — головна": ["iVINS Datasets — головна", "iVINS Datasets — home"],
-    "Dataset Registry": ["Реєстр даних", "Dataset Registry"],
+    "Dataset Catalog": ["Каталог даних", "Dataset Catalog"],
     "Основна навігація": ["Основна навігація", "Primary navigation"],
-    "Registry ↗": ["Реєстр ↗", "Registry ↗"],
     "Гість": ["Гість", "Guest"],
     "Користувач": ["Користувач", "User"],
     "Адмін": ["Адмін", "Admin"],
@@ -18,11 +17,10 @@
     "datasets": ["наборів даних", "datasets"],
     "families": ["сімейств", "families"],
     "external mirrors": ["зовнішніх дзеркал", "external mirrors"],
-    "Public registry": ["Публічний реєстр", "Public registry"],
+    "Public catalog": ["Публічний каталог", "Public catalog"],
     "Доступ без реєстрації": ["Доступ без реєстрації", "Access without registration"],
     "Гості можуть переглядати весь публічний каталог і завантажувати файли із зовнішніх дзеркал.": ["Гості можуть переглядати весь публічний каталог і завантажувати файли із зовнішніх дзеркал.", "Guests can browse the complete public catalog and download files from external mirrors."],
     "Локальні server artifacts відкриваються після авторизації API-ключем.": ["Локальні серверні артефакти відкриваються після авторизації API-ключем.", "Local server artifacts become available after API-key authentication."],
-    "Public catalog": ["Публічний каталог", "Public catalog"],
     "Оновити": ["Оновити", "Refresh"],
     "Пошук": ["Пошук", "Search"],
     "ID або назва dataset": ["ID або назва Dataset", "Dataset ID or name"],

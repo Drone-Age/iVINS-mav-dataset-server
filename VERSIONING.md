@@ -1,5 +1,7 @@
 # Component versioning
 
+[Українська версія](VERSIONING.uk.md)
+
 The repository contains four independently versioned components:
 
 | Component | Scope | Current version | Git tag |
@@ -14,7 +16,8 @@ loads and validates it at startup and exposes it at `GET /versions`. The same
 values are returned by health, session, catalog and administration responses.
 
 Distribution is technology-neutral. A Distribution version may provide one or
-more package formats such as `docker-bundle` or `windows-installer`. Adding a
+more package formats such as `docker-bundle`, `windows-portable` or
+`windows-msi`. Adding a
 compatible installer format changes Distribution without forcing Backend,
 Frontend or Process to change.
 

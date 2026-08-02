@@ -1,5 +1,7 @@
 # Distribution changelog
 
+[Українська версія](CHANGELOG.distribution.uk.md)
+
 ## 2.0.0 — 2026-08-02
 
 - Renamed OCI and bundle artifacts to `datasetsmanager-server`.

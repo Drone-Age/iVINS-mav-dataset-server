@@ -1,8 +1,10 @@
 # Security policy
 
+[Українська версія](SECURITY.uk.md)
+
 ## Supported release
 
-Only the latest `3.x` release receives security fixes.
+Only the latest `4.x` release receives security fixes.
 
 ## HTTP deployment boundary
 

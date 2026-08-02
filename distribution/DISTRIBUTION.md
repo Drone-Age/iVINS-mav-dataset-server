@@ -43,7 +43,9 @@ Build on Windows with `tools/build-windows-package.ps1`. The script creates a
 PyInstaller executable containing the Python runtime, installs Waitress as the
 HTTP service host, and packages install/uninstall/verify/key-management tools.
 Runtime data defaults to `%ProgramData%\DataSetsManager\Server\var`; all BAG
-files remain direct children of its `bags` directory.
+files remain direct children of its `bags` directory. Build dependencies are
+resolved from `requirements-windows.lock`; `verify-integrity.ps1` validates the
+extracted package before service installation.
 
 ## Build
 

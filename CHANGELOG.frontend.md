@@ -1,5 +1,7 @@
 # Frontend changelog
 
+[Українська версія](CHANGELOG.frontend.uk.md)
+
 ## 4.0.0 — 2026-08-02
 
 - Renamed the public and administrative interface to DataSetsManager Server.

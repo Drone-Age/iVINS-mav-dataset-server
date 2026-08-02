@@ -2,11 +2,15 @@
 param(
     [string]$DataRoot = "$env:ProgramData\DataSetsManager\Server\var",
     [string]$BindAddress = "127.0.0.1",
-    [ValidateRange(1,65535)][int]$Port = 8080
+    [ValidateRange(1,65535)][int]$Port = 8080,
+    [switch]$SkipIntegrityCheck
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+if (-not $SkipIntegrityCheck) {
+    & (Join-Path $PSScriptRoot "verify-integrity.ps1") -BundleRoot $PSScriptRoot
+}
 $exe = Join-Path $PSScriptRoot "datasetsmanager-server.exe"
 if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Missing $exe" }
 New-Item -ItemType Directory -Path (Join-Path $DataRoot "bags") -Force | Out-Null

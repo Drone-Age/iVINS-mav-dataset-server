@@ -10,7 +10,7 @@ local iVINS artifacts.
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
 [`DataSetsManager/client`](https://github.com/DataSetsManager/client)
-registry: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
+catalog: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
 and configuration links. Each Dataset also has a family-scoped iVINS profile;
 the available profile filter values follow the selected family.
 
@@ -94,7 +94,8 @@ access. `compose.release.yaml` has no `build` section and uses
 additional Distribution format and will use the same component compatibility,
 data and API-key rules.
 
-See [the Distribution guide](distribution/DISTRIBUTION.md).
+See [the Distribution guide](distribution/DISTRIBUTION.md) and the
+[local Distribution 2.0 acceptance evidence](docs/acceptance/distribution-2.0.0.md).
 
 ## API keys
 

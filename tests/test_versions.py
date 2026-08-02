@@ -79,6 +79,18 @@ class ComponentVersioningTest(unittest.TestCase):
         )
         self.assertEqual(["docker-bundle", "windows-portable", "windows-msi"], schema["properties"]["package_format"]["enum"])
 
+        windows_lock = (root / "requirements-windows.lock").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(windows_lock)
+        self.assertTrue(all("==" in line for line in windows_lock if line.strip()))
+        for name in (
+            "install-service.ps1",
+            "uninstall-service.ps1",
+            "verify.ps1",
+            "new-admin-key.ps1",
+        ):
+            self.assertTrue((root / "distribution" / "windows" / name).is_file())
+        self.assertTrue((root / "distribution" / "common" / "verify-integrity.ps1").is_file())
+
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn("server.py api_keys.py settings.py versions.json", dockerfile)

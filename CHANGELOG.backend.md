@@ -1,5 +1,7 @@
 # Backend changelog
 
+[Українська версія](CHANGELOG.backend.uk.md)
+
 ## 4.0.0 — 2026-08-02
 
 - Renamed the runtime to DataSetsManager Server without changing `/v1` routes.

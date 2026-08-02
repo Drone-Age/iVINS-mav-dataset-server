@@ -1,5 +1,7 @@
 # Process changelog
 
+[Українська версія](CHANGELOG.process.uk.md)
+
 ## 2.0.0 — 2026-08-02
 
 - Moved the canonical Process to `DataSetsManager/DataSetsManager`.

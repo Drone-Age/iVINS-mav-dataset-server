@@ -1,5 +1,7 @@
 # Component release checklist
 
+[Український шаблон](release-checklist.uk.md)
+
 - Commit SHA:
 - Backend:
 - Frontend:

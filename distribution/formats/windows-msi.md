@@ -1,5 +1,7 @@
 # Future package format: Windows MSI
 
+[Українська версія](windows-msi.uk.md)
+
 Status: reserved as `windows-msi`; not implemented in Distribution 2.0.0.
 
 The future Windows Installer will be an additional Distribution format, not a
