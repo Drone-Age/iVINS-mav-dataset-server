@@ -1,5 +1,7 @@
 # Incident: <title>
 
+[Український шаблон](incident-report.uk.md)
+
 - ID:
 - Severity: Critical / High / Medium / Low
 - Detected at:

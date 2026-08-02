@@ -9,7 +9,7 @@ let adminDatasets = [];
 let datasetEditMode = false;
 
 const byId = (id) => document.getElementById(id);
-const t = (uk, en) => window.IVINS_I18N?.t(uk, en) || uk;
+const t = (uk, en) => (window.DSM_I18N || window.IVINS_I18N)?.t(uk, en) || uk;
 
 function make(tag, text, className) {
   const element = document.createElement(tag);
@@ -38,7 +38,7 @@ function formatBytes(value) {
 function formatDate(value, epoch = false) {
   if (!value) return "—";
   const date = epoch ? new Date(Number(value) * 1000) : new Date(`${value}Z`);
-  const locale = window.IVINS_I18N?.getLanguage() === "en" ? "en-US" : "uk-UA";
+  const locale = (window.DSM_I18N || window.IVINS_I18N)?.getLanguage() === "en" ? "en-US" : "uk-UA";
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString(locale);
 }
 

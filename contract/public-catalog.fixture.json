@@ -10,7 +10,7 @@
       "recording": {"name": "dev_4_flight_field_01", "ground_truth": null},
       "profile": "dev_04",
       "calibrations": [
-        {"name": "Kalibr dev4 try1", "path": "configurations/ivins/kalibr/dev4/try1"}
+        {"name": "Kalibr dev_04 try1", "path": "configurations/ivins/kalibr/dev_04/try1"}
       ],
       "links": [
         {"label": "Provenance", "url": "https://1drv.ms/u/c/43b02ab6ed7aabf6/IQDBuTo3UtHXSof4k6cDPAWiAaR3vkQkJit8j5QlpO7ZRP0?e=7Xa9pH"}

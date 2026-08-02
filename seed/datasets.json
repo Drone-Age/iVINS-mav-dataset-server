@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-02.3",
+  "version": "2026-08-02.4",
   "datasets": [
     {
       "id": "e.1.1.e", "family": "EuRoC MAV", "name": "V1_01_easy", "measurement": "58 m",
@@ -290,8 +290,8 @@
 
     {
       "id": "iv.dev.4.ff.1", "family": "iVINS", "profile": "dev_04", "name": "dev_4_flight_field_01", "measurement": "Unknown",
-      "description": "iVINS dev_4 flight-field recording. Public external binary mirror is not yet verified.",
-      "homepage_url": "https://github.com/Drone-Age/iVINS-mav-dataset", "ground_truth_url": null, "config_url": "https://github.com/Drone-Age/iVINS-mav-dataset/tree/main/configurations/ivins"
+      "description": "iVINS dev_04 flight-field recording. Public external binary mirror is not yet verified.",
+      "homepage_url": "https://github.com/DataSetsManager/client", "ground_truth_url": null, "config_url": "https://github.com/DataSetsManager/client/tree/main/configurations/ivins"
     },
 
     {

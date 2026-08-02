@@ -3,9 +3,8 @@
 (() => {
   const copy = {
     "iVINS Datasets — головна": ["iVINS Datasets — головна", "iVINS Datasets — home"],
-    "Dataset Registry": ["Реєстр даних", "Dataset Registry"],
+    "Dataset Catalog": ["Каталог даних", "Dataset Catalog"],
     "Основна навігація": ["Основна навігація", "Primary navigation"],
-    "Registry ↗": ["Реєстр ↗", "Registry ↗"],
     "Гість": ["Гість", "Guest"],
     "Користувач": ["Користувач", "User"],
     "Адмін": ["Адмін", "Admin"],
@@ -18,11 +17,10 @@
     "datasets": ["наборів даних", "datasets"],
     "families": ["сімейств", "families"],
     "external mirrors": ["зовнішніх дзеркал", "external mirrors"],
-    "Public registry": ["Публічний реєстр", "Public registry"],
+    "Public catalog": ["Публічний каталог", "Public catalog"],
     "Доступ без реєстрації": ["Доступ без реєстрації", "Access without registration"],
     "Гості можуть переглядати весь публічний каталог і завантажувати файли із зовнішніх дзеркал.": ["Гості можуть переглядати весь публічний каталог і завантажувати файли із зовнішніх дзеркал.", "Guests can browse the complete public catalog and download files from external mirrors."],
     "Локальні server artifacts відкриваються після авторизації API-ключем.": ["Локальні серверні артефакти відкриваються після авторизації API-ключем.", "Local server artifacts become available after API-key authentication."],
-    "Public catalog": ["Публічний каталог", "Public catalog"],
     "Оновити": ["Оновити", "Refresh"],
     "Пошук": ["Пошук", "Search"],
     "ID або назва dataset": ["ID або назва Dataset", "Dataset ID or name"],
@@ -149,22 +147,25 @@
     const elements = root.querySelectorAll ? root.querySelectorAll("[aria-label], [placeholder], [title]") : [];
     elements.forEach(translateAttributes);
     document.documentElement.lang = language;
-    document.title = language === "en" ? "iVINS Dataset Server" : "Сервер наборів даних iVINS";
+    document.title = language === "en" ? "DataSetsManager Server" : "Сервер DataSetsManager";
     document.querySelectorAll("[data-language-selector]").forEach((selector) => { selector.value = language; });
   }
 
   function setLanguage(value) {
     language = value === "en" ? "en" : "uk";
     apply(document);
+    window.dispatchEvent(new CustomEvent("dsm-languagechange", { detail: { language } }));
     window.dispatchEvent(new CustomEvent("ivins-languagechange", { detail: { language } }));
   }
 
-  window.IVINS_I18N = {
+  window.DSM_I18N = {
     apply,
     getLanguage: () => language,
     setLanguage,
     t: (uk, en) => language === "en" ? en : uk,
   };
+  // Frontend 4.x compatibility alias; removed in Frontend 5.0.
+  window.IVINS_I18N = window.DSM_I18N;
 
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-language-selector]").forEach((selector) => {

@@ -1,16 +1,16 @@
 {
   "manifest_schema": "1.0",
-  "backend": "3.3.0",
-  "frontend": "3.3.0",
-  "process": "1.0.0",
-  "distribution": "1.0.0",
+  "backend": "4.0.0",
+  "frontend": "4.0.0",
+  "process": "2.0.0",
+  "distribution": "2.0.0",
   "compatibility": {
-    "frontend_requires_backend": ">=3.3.0 <4.0.0",
-    "process_applies_to_backend": ">=3.3.0 <4.0.0",
-    "process_applies_to_frontend": ">=3.3.0 <4.0.0",
-    "process_applies_to_distribution": ">=1.0.0 <2.0.0",
-    "distribution_packages_backend": ">=3.3.0 <4.0.0",
-    "distribution_packages_frontend": ">=3.3.0 <4.0.0",
-    "distribution_requires_process": ">=1.0.0 <2.0.0"
+    "frontend_requires_backend": ">=4.0.0 <5.0.0",
+    "process_applies_to_backend": ">=4.0.0 <5.0.0",
+    "process_applies_to_frontend": ">=4.0.0 <5.0.0",
+    "process_applies_to_distribution": ">=2.0.0 <3.0.0",
+    "distribution_packages_backend": ">=4.0.0 <5.0.0",
+    "distribution_packages_frontend": ">=4.0.0 <5.0.0",
+    "distribution_requires_process": ">=2.0.0 <3.0.0"
   }
 }

@@ -9,7 +9,7 @@ let siteEditMode = false;
 let editingDataset = null;
 
 const byId = (id) => document.getElementById(id);
-const t = (uk, en) => window.IVINS_I18N?.t(uk, en) || uk;
+const t = (uk, en) => (window.DSM_I18N || window.IVINS_I18N)?.t(uk, en) || uk;
 
 function toast(message, isError = false) {
   const node = byId("toast");

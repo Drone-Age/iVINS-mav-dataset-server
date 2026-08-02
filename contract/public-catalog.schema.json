@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://dataset.ivins.dev/schema/v1/public-catalog.schema.json",
-  "title": "Dataset Server v1 public catalog",
+  "$id": "https://github.com/DataSetsManager/server/releases/download/schema-public-catalog-v1.0.0/public-catalog.schema.json",
+  "title": "DataSetsManager Server v1 public catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "snapshot_version", "datasets"],

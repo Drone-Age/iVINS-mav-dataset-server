@@ -1,0 +1,11 @@
+[project]
+name = "datasetsmanager-server"
+version = "4.0.0"
+requires-python = ">=3.10"
+dependencies = ["Flask>=3.1,<4", "gunicorn>=23,<24"]
+
+[project.optional-dependencies]
+test = ["jsonschema>=4.23,<5", "PyYAML>=6,<7"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

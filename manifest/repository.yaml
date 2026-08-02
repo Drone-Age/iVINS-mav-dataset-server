@@ -1,0 +1,21 @@
+schema_version: "1.0"
+repository: DataSetsManager/server
+display_name: DataSetsManager Server
+version_streams:
+  backend: 4.0.0
+  frontend: 4.0.0
+  distribution: 2.0.0
+dependencies:
+  process: 2.0.0
+owner: NeoUKR
+change_authority: NeoUKR
+default_branch: main
+visibility: public
+data:
+  tracked: false
+  database: var/catalog.sqlite3
+  bag_directory: var/bags
+contracts:
+  api: /v1
+  public_catalog_schema: schemas/public-catalog.schema.json
+  distribution_schema: schemas/package-manifest.schema.json

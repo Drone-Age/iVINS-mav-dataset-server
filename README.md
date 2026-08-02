@@ -1,14 +1,16 @@
-# iVINS MAV Dataset Server
+# DataSetsManager Server
 
-The compatible bundle contains **Backend 3.3.0**, **Frontend 3.3.0**,
-**Process 1.0.0** and **Distribution 1.0.0**. It is a bilingual public Web
+[Українська версія](README.uk.md)
+
+The compatible bundle contains **Backend 4.0.0**, **Frontend 4.0.0**,
+**Process 2.0.0** and **Distribution 2.0.0**. It is a bilingual public Web
 catalog for visual-inertial datasets and an authenticated immutable store for
 local iVINS artifacts.
 
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
-[`Drone-Age/iVINS-mav-dataset`](https://github.com/Drone-Age/iVINS-mav-dataset)
-registry: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
+[`DataSetsManager/client`](https://github.com/DataSetsManager/client)
+catalog: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
 and configuration links. Each Dataset also has a family-scoped iVINS profile;
 the available profile filter values follow the selected family.
 
@@ -25,7 +27,7 @@ the available profile filter values follow the selected family.
 The browser keeps an entered API key only in page memory. It is never placed in
 a URL, cookie, local storage or session storage, and is forgotten on reload.
 
-Version 3 intentionally serves **HTTP**. HTTP does not protect API keys or
+Backend 4 intentionally serves **HTTP**. HTTP does not protect API keys or
 download tickets from observation in transit. For Internet exposure, terminate
 TLS at a reverse proxy/router or use a trusted VPN. Do not expose a bearer key
 over an untrusted plain-HTTP path.
@@ -68,7 +70,7 @@ Open:
 
 ## Offline deployment without Git
 
-Distribution 1.0.0 produces a complete ZIP for a target architecture. The
+Distribution 2.0.0 produces a complete ZIP for a target architecture. The
 package contains the saved Docker image, an offline Compose file, integrity
 manifests and install/update/rollback scripts. It contains no database,
 BAG files or API keys.
@@ -92,7 +94,8 @@ access. `compose.release.yaml` has no `build` section and uses
 additional Distribution format and will use the same component compatibility,
 data and API-key rules.
 
-See [the Distribution guide](distribution/DISTRIBUTION.md).
+See [the Distribution guide](distribution/DISTRIBUTION.md) and the
+[local Distribution 2.0 acceptance evidence](docs/acceptance/distribution-2.0.0.md).
 
 ## API keys
 
@@ -149,8 +152,8 @@ The administration interface shows and edits the value explicitly. Artifact
 upload and manual BAG metadata may also include `profile`; server-side
 validation remains authoritative.
 
-On first v3.2 startup, existing Dataset rows are migrated in place without
-deletion: missing, blank and former `general` values become `all`. Specific
+On first Backend 4.x startup, existing Dataset rows are migrated in place without
+deletion: missing, blank and former `general`, `dev_0`, `dev_2`, `dev_3`, `dev_4` and `dev4` values become their canonical `all`/`dev_01`…`dev_04` forms. Specific
 profiles are preserved, and the bundled `iv.dev.4.ff.1` record remains
 classified as `dev_04`.
 
@@ -167,7 +170,7 @@ browser download, the authenticated site requests a 60-second single-use
 ticket. Only the ticket digest is stored, and replay returns `404`.
 
 ```powershell
-$headers = @{ Authorization = "Bearer $env:IVINS_CLIENT_API_KEY" }
+$headers = @{ Authorization = "Bearer $env:DSM_CLIENT_API_KEY" }
 $ticket = Invoke-RestMethod `
   http://127.0.0.1:8080/v1/datasets/iv.dev.4.ff.1/artifacts/rosbag/1/download-ticket `
   -Method Post -Headers $headers -ContentType application/json -Body '{}'
@@ -204,18 +207,18 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade to Backend/Frontend 3.3.0, Process 1.0.0 and Distribution 1.0.0
+## Upgrade to Backend/Frontend 4.0.0, Process 2.0.0 and Distribution 2.0.0
 
 1. Back up the complete `var/` directory.
-2. Deploy the Backend 3.3.0 image against the same data directory.
+2. Deploy the Backend 4.0.0 image against the same data directory.
 3. Existing `admin` keys remain admins; `reader` and `publisher` keys are
    migrated to `user`.
 4. Existing missing, blank and `general` Dataset profiles become `all`; review
    family-specific profiles in the catalog and assign values such as `dev_01`
    where needed.
 5. Review the seeded public Datasets and mirrors in `/admin`.
-6. Confirm `/health` reports Backend 3.3.0, Frontend 3.3.0, Process 1.0.0
-   and Distribution 1.0.0,
+6. Confirm `/health` reports Backend 4.0.0, Frontend 4.0.0, Process 2.0.0
+   and Distribution 2.0.0,
    `schema_version: 1.0` and `key_store_ready: true`.
 7. Confirm `/versions` matches `versions.json` and the deployed component
    compatibility ranges.
@@ -226,12 +229,12 @@ server-side size and SHA-256 verification.
 docker compose config --quiet
 docker compose build
 docker run --rm --entrypoint python `
-  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.3.0 `
+  -v "${PWD}:/src:ro" -w /src datasetsmanager-server:4.0.0 `
   -m unittest discover -s tests -v
 
 .\tools\build-release-bundle.ps1 -SkipBuild
 
-docker scout cves ivins-mav-dataset-server:3.3.0 `
+docker scout cves datasetsmanager-server:4.0.0 `
   --only-severity critical,high
 ```
 

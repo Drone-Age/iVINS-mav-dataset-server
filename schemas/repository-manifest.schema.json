@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DataSetsManager/server/releases/download/schema-repository-v1.0.0/repository-manifest.schema.json",
+  "title": "DataSetsManager Server repository manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository", "display_name", "version_streams", "dependencies", "owner", "change_authority", "default_branch", "visibility", "data", "contracts"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "repository": {"const": "DataSetsManager/server"},
+    "display_name": {"type": "string", "minLength": 1},
+    "version_streams": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend", "distribution"],
+      "properties": {
+        "backend": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "frontend": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "distribution": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "dependencies": {"type": "object", "required": ["process"]},
+    "owner": {"const": "NeoUKR"},
+    "change_authority": {"const": "NeoUKR"},
+    "default_branch": {"const": "main"},
+    "visibility": {"const": "public"},
+    "data": {"type": "object", "required": ["tracked", "database", "bag_directory"]},
+    "contracts": {"type": "object", "required": ["api", "public_catalog_schema", "distribution_schema"]}
+  }
+}

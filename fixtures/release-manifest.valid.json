@@ -1,0 +1,13 @@
+{
+  "component": "backend",
+  "version": "4.0.0",
+  "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "process": "2.0.0",
+  "checks": ["unit-tests", "security-tests"],
+  "assets": [
+    {
+      "name": "datasetsmanager-server.zip",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ]
+}

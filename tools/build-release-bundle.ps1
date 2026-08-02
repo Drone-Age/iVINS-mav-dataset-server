@@ -32,16 +32,19 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Invoke-Docker -Arguments @("info", "--format", "{{.ServerVersion}}")
 
-$imageReference = "ivins-mav-dataset-server:$($versions.backend)"
+$imageReference = "datasetsmanager-server:$($versions.backend)"
+$legacyImageReference = "ivins-mav-dataset-server:$($versions.backend)"
 if (-not $SkipBuild) {
     Invoke-Docker -Arguments @(
         "buildx", "build",
         "--platform", $Platform,
         "--load",
         "--tag", $imageReference,
+        "--tag", $legacyImageReference,
         $repoRoot
     )
 }
+Invoke-Docker -Arguments @("tag", $imageReference, $legacyImageReference)
 
 [string]$imageId = & docker image inspect --format "{{.Id}}" $imageReference
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($imageId)) {
@@ -64,7 +67,7 @@ if ($actualPlatform -ne $Platform) {
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $platformName = $Platform.Replace("/", "-")
-$bundleName = "ivins-server_d$($versions.distribution)-b$($versions.backend)-f$($versions.frontend)-p$($versions.process)_docker-$platformName"
+$bundleName = "datasetsmanager-server_d$($versions.distribution)-b$($versions.backend)-f$($versions.frontend)-p$($versions.process)_docker-$platformName"
 $stage = [System.IO.Path]::GetFullPath((Join-Path $outputRoot $bundleName))
 $outputPrefix = $outputRoot.TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
 if (-not $stage.StartsWith($outputPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -76,10 +79,10 @@ if (Test-Path -LiteralPath $stage) {
 New-Item -ItemType Directory -Path (Join-Path $stage "images") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $stage "docs") -Force | Out-Null
 
-$imageArchiveName = "ivins-mav-dataset-server_$($versions.backend)_$platformName.tar"
+$imageArchiveName = "datasetsmanager-server_$($versions.backend)_$platformName.tar"
 $imageArchiveRelative = "images/$imageArchiveName"
 $imageArchive = Join-Path $stage ($imageArchiveRelative.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
-Invoke-Docker -Arguments @("save", "--output", $imageArchive, $imageReference)
+Invoke-Docker -Arguments @("save", "--output", $imageArchive, $imageReference, $legacyImageReference)
 
 $rootFiles = @(
     "compose.release.yaml",
@@ -94,7 +97,7 @@ foreach ($script in Get-ChildItem -LiteralPath (Join-Path $repoRoot "distributio
 }
 
 Copy-Item -LiteralPath (Join-Path $repoRoot "distribution\DISTRIBUTION.md") -Destination (Join-Path $stage "README.md")
-Copy-Item -LiteralPath (Join-Path $repoRoot "distribution\package-manifest.schema.json") -Destination (Join-Path $stage "package-manifest.schema.json")
+Copy-Item -LiteralPath (Join-Path $repoRoot "schemas\package-manifest.schema.json") -Destination (Join-Path $stage "package-manifest.schema.json")
 Copy-Item -LiteralPath (Join-Path $repoRoot "VERSIONING.md") -Destination (Join-Path $stage "docs\VERSIONING.md")
 Copy-Item -LiteralPath (Join-Path $repoRoot "process") -Destination (Join-Path $stage "docs\process") -Recurse
 foreach ($changelog in Get-ChildItem -LiteralPath $repoRoot -Filter "CHANGELOG.*.md" -File) {
@@ -104,7 +107,7 @@ foreach ($changelog in Get-ChildItem -LiteralPath $repoRoot -Filter "CHANGELOG.*
 $manifest = [ordered]@{
     schema_version = "1.0"
     distribution = [ordered]@{
-        name = "iVINS Dataset Server"
+        name = "DataSetsManager Server"
         version = $versions.distribution
     }
     package_format = "docker-bundle"
@@ -121,6 +124,7 @@ $manifest = [ordered]@{
     compatibility = $versions.compatibility
     image = [ordered]@{
         reference = $imageReference
+        compatibility_alias = $legacyImageReference
         archive = $imageArchiveRelative
         image_id = $imageId
     }

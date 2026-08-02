@@ -1,0 +1,17 @@
+Flask==3.1.2
+blinker==1.9.0
+click==8.4.2
+colorama==0.4.6
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+Werkzeug==3.1.8
+waitress==3.0.2
+pywin32==312
+PyInstaller==6.21.0
+altgraph==0.17.5
+packaging==26.2
+pefile==2024.8.26
+pyinstaller-hooks-contrib==2026.6
+pywin32-ctypes==0.2.3
+setuptools==83.0.0

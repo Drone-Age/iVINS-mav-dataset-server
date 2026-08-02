@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DataSetsManager/server/releases/download/schema-release-v1.0.0/release-manifest.schema.json",
+  "title": "DataSetsManager Server release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["component", "version", "commit", "process", "checks", "assets"],
+  "properties": {
+    "component": {"enum": ["backend", "frontend", "distribution"]},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "process": {"const": "2.0.0"},
+    "checks": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "assets": {"type": "array", "items": {"type": "object", "required": ["name", "sha256"]}}
+  }
+}

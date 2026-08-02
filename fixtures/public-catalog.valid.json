@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "snapshot_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "datasets": [
+    {
+      "id": "iv.dev.4.ff.1",
+      "title": "Fixture dataset",
+      "description": "A public catalog schema fixture.",
+      "family": "ivins",
+      "profile": "dev_04",
+      "artifacts": [
+        {
+          "format": "rosbag",
+          "version": "1",
+          "state": "published",
+          "size": 1024,
+          "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "download_url": "/v1/datasets/iv.dev.4.ff.1/artifacts/rosbag/1/download"
+        }
+      ]
+    }
+  ]
+}

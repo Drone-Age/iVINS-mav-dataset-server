@@ -56,10 +56,10 @@ class AdminWebTest(unittest.TestCase):
         html = self.client.get("/admin").get_data(as_text=True)
         self.assertIn("data-language-selector", html)
         self.assertIn('data-view="datasets"', html)
-        self.assertIn("Backend 3.3.0", html)
-        self.assertIn("Frontend 3.3.0", html)
-        self.assertIn("Process 1.0.0", html)
-        self.assertIn("Distribution 1.0.0", html)
+        self.assertIn("Backend 4.0.0", html)
+        self.assertIn("Frontend 4.0.0", html)
+        self.assertIn("Process 2.0.0", html)
+        self.assertIn("Distribution 2.0.0", html)
         self.assertIn("Режим редагування", html)
 
     def test_roles_are_enforced_server_side(self):
@@ -77,12 +77,12 @@ class AdminWebTest(unittest.TestCase):
         self.assertEqual(200, session.status_code)
         self.assertEqual("admin", session.json["role"])
         overview = self.client.get("/admin/api/overview", headers=self.admin)
-        self.assertEqual("3.3.0", overview.json["backend_version"])
-        self.assertEqual("3.3.0", overview.json["frontend_version"])
-        self.assertEqual("1.0.0", overview.json["process_version"])
-        self.assertEqual("1.0.0", overview.json["distribution_version"])
+        self.assertEqual("4.0.0", overview.json["backend_version"])
+        self.assertEqual("4.0.0", overview.json["frontend_version"])
+        self.assertEqual("2.0.0", overview.json["process_version"])
+        self.assertEqual("2.0.0", overview.json["distribution_version"])
         self.assertEqual(
-            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0", "distribution": "1.0.0"},
+            {"backend": "4.0.0", "frontend": "4.0.0", "process": "2.0.0", "distribution": "2.0.0"},
             overview.json["versions"],
         )
 

@@ -1,5 +1,14 @@
 # Backend changelog
 
+[Українська версія](CHANGELOG.backend.uk.md)
+
+## 4.0.0 — 2026-08-02
+
+- Renamed the runtime to DataSetsManager Server without changing `/v1` routes.
+- Added canonical `DSM_*` settings with one-major `IVINS_*` compatibility.
+- Added canonical profile aliases and safe in-place database normalization.
+- New API keys use `dsm_`; existing `ivins_` keys remain valid through 4.x.
+
 ## 3.3.0 — 2026-08-02
 
 - Added a validated canonical component-version manifest.

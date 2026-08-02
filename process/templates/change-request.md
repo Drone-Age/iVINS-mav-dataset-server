@@ -1,5 +1,7 @@
 # Change request: <title>
 
+[Український шаблон](change-request.uk.md)
+
 - ID:
 - Initiator:
 - Owner:
