@@ -135,8 +135,10 @@ async function loadOverview() {
   byId("metricMissing").textContent = data.missing_files;
   byId("metricLegacy").textContent = data.legacy_files;
   byId("bagRoot").textContent = data.bag_root;
-  byId("serverVersion").textContent = data.server_version;
-  byId("serverStatus").textContent = `${t("Працює", "Healthy")} · ${data.server_version}`;
+  byId("backendVersion").textContent = data.backend_version;
+  byId("frontendVersion").textContent = data.frontend_version;
+  byId("processVersion").textContent = data.process_version;
+  byId("serverStatus").textContent = `${t("Працює", "Healthy")} · Backend ${data.backend_version}`;
 }
 
 function populateAdminFamilyFilter() {

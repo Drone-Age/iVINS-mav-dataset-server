@@ -14,7 +14,7 @@
     <div class="login-card">
       <div class="brand-mark" aria-hidden="true">iV</div>
       <label class="language-picker"><span>Мова / Language</span><select data-language-selector><option value="uk">Українська</option><option value="en">English</option></select></label>
-      <p class="eyebrow">Dataset Server {{ server_version }}</p>
+      <p class="eyebrow">Backend {{ backend }} · Frontend {{ frontend }} · Process {{ process }}</p>
       <h1 id="loginTitle">Адміністративний доступ</h1>
       <p class="muted">Введіть API-ключ із роллю <strong>admin</strong>. Ключ зберігається лише в пам’яті цієї вкладки.</p>
       <form id="loginForm" class="stack">
@@ -73,7 +73,9 @@
         </div>
         <article class="panel storage-panel">
           <div><p class="panel-label">Єдиний каталог BAG</p><code id="bagRoot">—</code></div>
-          <div><p class="panel-label">Версія сервера</p><strong id="serverVersion">—</strong></div>
+          <div><p class="panel-label">Backend</p><strong id="backendVersion">—</strong></div>
+          <div><p class="panel-label">Frontend</p><strong id="frontendVersion">—</strong></div>
+          <div><p class="panel-label">Process</p><strong id="processVersion">—</strong></div>
         </article>
       </section>
 

@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --requirement requirements.txt \
     && addgroup -S -g 10001 catalog \
     && adduser -S -D -H -u 10001 -G catalog catalog
 
-COPY --chown=catalog:catalog server.py api_keys.py ./
+COPY --chown=catalog:catalog server.py api_keys.py versions.json ./
 COPY --chown=catalog:catalog templates ./templates
 COPY --chown=catalog:catalog static ./static
 COPY --chown=catalog:catalog seed ./seed

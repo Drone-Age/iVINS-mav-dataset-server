@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dataset Server v3.2: public catalog and authenticated artifact storage."""
+"""Versioned iVINS backend: public catalog and authenticated artifact storage."""
 
 from __future__ import annotations
 
@@ -24,13 +24,53 @@ from flask import Flask, g, jsonify, render_template, request, send_file
 import api_keys
 
 SCHEMA_VERSION = "1.0"
-SERVER_VERSION = "3.2.0"
+SEMVER_RE = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+
+
+def load_version_manifest(path: Path | None = None) -> dict[str, object]:
+    path = path or Path(__file__).resolve().with_name("versions.json")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("manifest_schema") != "1.0":
+        raise RuntimeError("unsupported version manifest schema")
+    for component in ("backend", "frontend", "process"):
+        value = payload.get(component)
+        if not isinstance(value, str) or not SEMVER_RE.fullmatch(value):
+            raise RuntimeError(f"invalid {component} semantic version")
+    compatibility = payload.get("compatibility")
+    if not isinstance(compatibility, dict) or not compatibility:
+        raise RuntimeError("version compatibility matrix is required")
+    required_rules = (
+        "frontend_requires_backend",
+        "process_applies_to_backend",
+        "process_applies_to_frontend",
+    )
+    for rule in required_rules:
+        value = compatibility.get(rule)
+        if not isinstance(value, str) or not value.strip():
+            raise RuntimeError(f"invalid compatibility rule: {rule}")
+    return payload
+
+
+VERSION_MANIFEST = load_version_manifest()
+BACKEND_VERSION = str(VERSION_MANIFEST["backend"])
+FRONTEND_VERSION = str(VERSION_MANIFEST["frontend"])
+PROCESS_VERSION = str(VERSION_MANIFEST["process"])
+# Backward-compatible alias retained for v3 clients.
+SERVER_VERSION = BACKEND_VERSION
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 DATASET_SEED_VERSION = "2026-08-02.3"
 app = Flask(__name__)
+
+
+def component_versions() -> dict[str, str]:
+    return {
+        "backend": BACKEND_VERSION,
+        "frontend": FRONTEND_VERSION,
+        "process": PROCESS_VERSION,
+    }
 
 
 def data_root() -> Path:
@@ -484,18 +524,27 @@ def health():
         status="ok",
         schema_version=SCHEMA_VERSION,
         server_version=SERVER_VERSION,
+        backend_version=BACKEND_VERSION,
+        frontend_version=FRONTEND_VERSION,
+        process_version=PROCESS_VERSION,
+        versions=component_versions(),
         key_store_ready=api_keys.active_key_count() > 0,
     )
 
 
+@app.get("/versions")
+def versions():
+    return jsonify(VERSION_MANIFEST)
+
+
 @app.get("/admin")
 def admin_page():
-    return render_template("admin.html", server_version=SERVER_VERSION)
+    return render_template("admin.html", **component_versions())
 
 
 @app.get("/")
 def public_page():
-    return render_template("site.html", server_version=SERVER_VERSION)
+    return render_template("site.html", **component_versions())
 
 
 @app.get("/auth/session")
@@ -505,6 +554,7 @@ def authenticated_session():
         role=g.api_key_role,
         user_type="Адмін" if g.api_key_role == "admin" else "Користувач",
         server_version=SERVER_VERSION,
+        versions=component_versions(),
     )
 
 
@@ -579,6 +629,7 @@ def public_datasets():
         profiles_by_family=profiles_by_family,
         total=len(items),
         server_version=SERVER_VERSION,
+        versions=component_versions(),
     )
 
 
@@ -948,6 +999,7 @@ def admin_session():
         key_id=g.api_key_id,
         role=g.api_key_role,
         server_version=SERVER_VERSION,
+        versions=component_versions(),
     )
 
 
@@ -967,6 +1019,10 @@ def admin_overview():
     ]
     return jsonify(
         server_version=SERVER_VERSION,
+        backend_version=BACKEND_VERSION,
+        frontend_version=FRONTEND_VERSION,
+        process_version=PROCESS_VERSION,
+        versions=component_versions(),
         schema_version=SCHEMA_VERSION,
         active_keys=api_keys.active_key_count(),
         uploads=uploads,

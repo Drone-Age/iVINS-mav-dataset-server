@@ -56,6 +56,9 @@ class AdminWebTest(unittest.TestCase):
         html = self.client.get("/admin").get_data(as_text=True)
         self.assertIn("data-language-selector", html)
         self.assertIn('data-view="datasets"', html)
+        self.assertIn("Backend 3.3.0", html)
+        self.assertIn("Frontend 3.3.0", html)
+        self.assertIn("Process 1.0.0", html)
         self.assertIn("Режим редагування", html)
 
     def test_roles_are_enforced_server_side(self):
@@ -72,6 +75,14 @@ class AdminWebTest(unittest.TestCase):
         session = self.client.get("/admin/api/session", headers=self.admin)
         self.assertEqual(200, session.status_code)
         self.assertEqual("admin", session.json["role"])
+        overview = self.client.get("/admin/api/overview", headers=self.admin)
+        self.assertEqual("3.3.0", overview.json["backend_version"])
+        self.assertEqual("3.3.0", overview.json["frontend_version"])
+        self.assertEqual("1.0.0", overview.json["process_version"])
+        self.assertEqual(
+            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0"},
+            overview.json["versions"],
+        )
 
     def test_admin_creates_and_revokes_server_generated_key(self):
         response = self.client.post(

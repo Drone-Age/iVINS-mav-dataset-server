@@ -54,9 +54,22 @@ class ServerTest(unittest.TestCase):
     def test_health_is_minimal_and_all_v1_reads_require_a_key(self):
         health = self.client.get("/health")
         self.assertEqual(200, health.status_code)
-        self.assertEqual("3.2.0", health.json["server_version"])
+        self.assertEqual("3.3.0", health.json["server_version"])
+        self.assertEqual("3.3.0", health.json["backend_version"])
+        self.assertEqual("3.3.0", health.json["frontend_version"])
+        self.assertEqual("1.0.0", health.json["process_version"])
+        self.assertEqual(
+            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0"},
+            health.json["versions"],
+        )
         self.assertTrue(health.json["key_store_ready"])
         self.assertEqual(401, self.client.get("/v1/catalog").status_code)
+        versions = self.client.get("/versions")
+        self.assertEqual(200, versions.status_code)
+        self.assertEqual("3.3.0", versions.json["backend"])
+        self.assertEqual(
+            ">=3.3.0 <4.0.0", versions.json["compatibility"]["frontend_requires_backend"]
+        )
         self.assertEqual(200, self.get("/v1/catalog").status_code)
 
     def test_no_active_key_returns_503_and_health_remains_available(self):

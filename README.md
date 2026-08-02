@@ -1,7 +1,8 @@
 # iVINS MAV Dataset Server
 
-Dataset Server v3.2 is a bilingual public Web catalog for visual-inertial datasets and an
-authenticated immutable store for local iVINS artifacts.
+The compatible bundle contains **Backend 3.3.0**, **Frontend 3.3.0** and
+**Process 1.0.0**. It is a bilingual public Web catalog for visual-inertial
+datasets and an authenticated immutable store for local iVINS artifacts.
 
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
@@ -27,6 +28,19 @@ Version 3 intentionally serves **HTTP**. HTTP does not protect API keys or
 download tickets from observation in transit. For Internet exposure, terminate
 TLS at a reverse proxy/router or use a trusted VPN. Do not expose a bearer key
 over an untrusted plain-HTTP path.
+
+## Component versions
+
+Backend, Frontend and Process use independent SemVer versions. The canonical
+compatibility manifest is [versions.json](versions.json), is validated by the
+Backend at startup and is available from `GET /versions`. The legacy
+`server_version` response field remains an alias for the Backend version.
+
+New Git tags and GitHub releases use `backend-vX.Y.Z`,
+`frontend-vX.Y.Z` and `process-vX.Y.Z`. The Docker image tag follows the
+Backend version. See [VERSIONING.md](VERSIONING.md) for the compatibility and
+release rules, and [process/PROCESS.md](process/PROCESS.md) for the normative
+Process policies and operating procedures.
 
 ## Docker quick start
 
@@ -135,6 +149,7 @@ Invoke-WebRequest ("http://127.0.0.1:8080" + $ticket.download_url) -OutFile data
 |---|---|---|---|
 | Public | `GET` | `/health` | Minimal liveness |
 | Public | `GET` | `/public/api/datasets` | Visible Datasets and external mirrors |
+| Public | `GET` | `/versions` | Component versions and compatibility |
 | Key | `GET` | `/auth/session` | Resolve API-key role |
 | User/Admin | `GET` | `/v1/catalog` | Local artifact catalog |
 | User/Admin | `GET` | `/v1/datasets/{id}/artifacts/{format}/{version}/download` | Direct authenticated download |
@@ -157,18 +172,20 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade to v3.2
+## Upgrade to Backend/Frontend 3.3.0 and Process 1.0.0
 
 1. Back up the complete `var/` directory.
-2. Deploy the v3.2 image against the same data directory.
+2. Deploy the Backend 3.3.0 image against the same data directory.
 3. Existing `admin` keys remain admins; `reader` and `publisher` keys are
    migrated to `user`.
 4. Existing missing, blank and `general` Dataset profiles become `all`; review
    family-specific profiles in the catalog and assign values such as `dev_01`
    where needed.
 5. Review the seeded public Datasets and mirrors in `/admin`.
-6. Confirm `/health` reports `server_version: 3.2.0`, `schema_version: 1.0`, and
-   `key_store_ready: true`.
+6. Confirm `/health` reports Backend 3.3.0, Frontend 3.3.0, Process 1.0.0,
+   `schema_version: 1.0` and `key_store_ready: true`.
+7. Confirm `/versions` matches `versions.json` and the deployed component
+   compatibility ranges.
 
 ## Verification
 
@@ -176,10 +193,10 @@ server-side size and SHA-256 verification.
 docker compose config --quiet
 docker compose build
 docker run --rm --entrypoint python `
-  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.2.0 `
+  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.3.0 `
   -m unittest discover -s tests -v
 
-docker scout cves ivins-mav-dataset-server:3.2.0 `
+docker scout cves ivins-mav-dataset-server:3.3.0 `
   --only-severity critical,high
 ```
 
