@@ -97,7 +97,7 @@ foreach ($script in Get-ChildItem -LiteralPath (Join-Path $repoRoot "distributio
 }
 
 Copy-Item -LiteralPath (Join-Path $repoRoot "distribution\DISTRIBUTION.md") -Destination (Join-Path $stage "README.md")
-Copy-Item -LiteralPath (Join-Path $repoRoot "distribution\package-manifest.schema.json") -Destination (Join-Path $stage "package-manifest.schema.json")
+Copy-Item -LiteralPath (Join-Path $repoRoot "schemas\package-manifest.schema.json") -Destination (Join-Path $stage "package-manifest.schema.json")
 Copy-Item -LiteralPath (Join-Path $repoRoot "VERSIONING.md") -Destination (Join-Path $stage "docs\VERSIONING.md")
 Copy-Item -LiteralPath (Join-Path $repoRoot "process") -Destination (Join-Path $stage "docs\process") -Recurse
 foreach ($changelog in Get-ChildItem -LiteralPath $repoRoot -Filter "CHANGELOG.*.md" -File) {

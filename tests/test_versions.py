@@ -75,7 +75,7 @@ class ComponentVersioningTest(unittest.TestCase):
             self.assertTrue((root / "distribution" / "docker" / name).is_file())
 
         schema = json.loads(
-            (root / "distribution" / "package-manifest.schema.json").read_text(encoding="utf-8")
+            (root / "schemas" / "package-manifest.schema.json").read_text(encoding="utf-8")
         )
         self.assertEqual(["docker-bundle", "windows-portable", "windows-msi"], schema["properties"]["package_format"]["enum"])
 

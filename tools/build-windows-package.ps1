@@ -41,7 +41,7 @@ Copy-Item -LiteralPath (Join-Path $binaryRoot "datasetsmanager-server.exe") -Des
 Copy-Item -Path (Join-Path $root "distribution\windows\*.ps1") -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root "distribution\common\verify-integrity.ps1") -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root "versions.json") -Destination $stage
-Copy-Item -LiteralPath (Join-Path $root "distribution\package-manifest.schema.json") -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root "schemas\package-manifest.schema.json") -Destination $stage
 $manifest=[ordered]@{
     schema_version="1.0"; distribution=@{name="DataSetsManager Server";version=$versions.distribution};
     package_format="windows-portable"; platform=@{os="windows";architecture="x64"};
