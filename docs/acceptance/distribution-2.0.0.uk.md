@@ -2,14 +2,15 @@
 
 [English version](distribution-2.0.0.md)
 
-Дата: 2026-08-02. Вихідна гілка: `migration/datasetsmanager-server-4.0.0`.
+Дата: 2026-08-02. Джерело: перевірений commit `main`
+`9f81c90a514bf59841b3e7c1754e72341821c32d`.
 
 ## Артефакти
 
 | Пакет | Байтів | SHA-256 |
 |---|---:|---|
-| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_docker-linux-amd64.zip` | 18 965 131 | `547571ed8c672f235cefecc8cacb4e3c256e941f24f4df77dcc2bec7f9f075ab` |
-| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_windows-x64.zip` | 17 773 736 | `b2db19889b02f4c2d6038b58eafc03f98509bd2b134b573792155636a9341979` |
+| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_docker-linux-amd64.zip` | 18 965 360 | `9dc12edfd2ad0adb407967335141877d499b169de5871c323df8b92ff4a68ef9` |
+| `datasetsmanager-server_d2.0.0-b4.0.0-f4.0.0-p2.0.0_windows-x64.zip` | 17 774 021 | `314821581fd5685baa99b6cc8b79897b3fea5a291f1dca3c61ee9af1a6d3a0a3` |
 
 Обидва ZIP пройшли перевірку sidecar і внутрішнього `SHA256SUMS`, валідацію
 package manifest за JSON Schema та сканування архіву, яке підтвердило відсутність
@@ -22,7 +23,9 @@ package manifest за JSON Schema та сканування архіву, яке
 - Пройдено 50 модульних, документаційних і безпекових тестів
   Backend/Frontend/Distribution.
 - Конфігурації Compose для розробки й релізу успішно валідовані.
-- Docker ZIP завантажив локальний image і розгорнувся без Git на
+- Docker ZIP, повторно зібраний після merge з перевіреного `main`, завантажив
+  image `sha256:f112d6943a1a8e7ab9d4b343805415ab6c8180a710a4ff650b8576df970310c8`
+  і розгорнувся без Git на
   `127.0.0.1:18082`; публічний каталог повернув 57 Datasets, захищений `/v1`
   без ключа повернув `401`, згенерований сервером admin-ключ автентифікувався,
   а його відкритий текст був відсутній у SQLite.
@@ -41,8 +44,7 @@ package manifest за JSON Schema та сканування архіву, яке
 
 ## Ще відкриті контрольні точки
 
-Це локальне приймання пакетів, а не production-схвалення. Ще потрібні тест на
-чистій Windows VM, тест на чистому offline Docker-host, перевірена міграція
-runtime на диску `F:`, production cutover маршрутизації, merge, теги та GitHub
-Releases. Вони потребують рішення Change Authority, зафіксованого у
-міграційному Change.
+Це локальне приймання пакетів, а не post-production review. Merge і рішення
+Change Authority завершені. Ще потрібні тест на чистій Windows VM, тест на
+чистому offline Docker-host, перевірена міграція runtime на диску `F:`,
+production cutover, теги та GitHub Releases.
