@@ -58,8 +58,9 @@ class ServerTest(unittest.TestCase):
         self.assertEqual("3.3.0", health.json["backend_version"])
         self.assertEqual("3.3.0", health.json["frontend_version"])
         self.assertEqual("1.0.0", health.json["process_version"])
+        self.assertEqual("1.0.0", health.json["distribution_version"])
         self.assertEqual(
-            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0"},
+            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0", "distribution": "1.0.0"},
             health.json["versions"],
         )
         self.assertTrue(health.json["key_store_ready"])

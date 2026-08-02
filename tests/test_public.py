@@ -44,10 +44,11 @@ class PublicCatalogTest(unittest.TestCase):
         self.assertIn("Backend 3.3.0", html)
         self.assertIn("Frontend 3.3.0", html)
         self.assertIn("Process 1.0.0", html)
+        self.assertIn("Distribution 1.0.0", html)
         response = self.client.get("/public/api/datasets")
         self.assertEqual(200, response.status_code)
         self.assertEqual(
-            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0"},
+            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0", "distribution": "1.0.0"},
             response.json["versions"],
         )
         self.assertEqual(57, response.json["total"])

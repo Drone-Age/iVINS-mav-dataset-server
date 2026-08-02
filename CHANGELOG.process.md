@@ -7,3 +7,4 @@
 - Established incident response, exception handling and evidence requirements.
 - Established independent Process SemVer and component compatibility rules.
 - Added change-request, incident-report and release-checklist templates.
+- Added Distribution packaging, offline installation and integrity release gates.

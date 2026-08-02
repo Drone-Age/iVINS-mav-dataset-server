@@ -138,6 +138,7 @@ async function loadOverview() {
   byId("backendVersion").textContent = data.backend_version;
   byId("frontendVersion").textContent = data.frontend_version;
   byId("processVersion").textContent = data.process_version;
+  byId("distributionVersion").textContent = data.distribution_version;
   byId("serverStatus").textContent = `${t("Працює", "Healthy")} · Backend ${data.backend_version}`;
 }
 

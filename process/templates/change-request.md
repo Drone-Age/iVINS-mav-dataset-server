@@ -5,7 +5,7 @@
 - Owner:
 - Priority:
 - Risk: Low / Medium / High
-- Components: Backend / Frontend / Process
+- Components: Backend / Frontend / Process / Distribution
 - Proposed versions:
 
 ## Problem and objective

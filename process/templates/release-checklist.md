@@ -4,6 +4,7 @@
 - Backend:
 - Frontend:
 - Process:
+- Distribution:
 - Compatibility manifest reviewed:
 
 ## Before release
@@ -14,6 +15,9 @@
 - [ ] Unit/integration/security tests passed
 - [ ] Compose configuration validated
 - [ ] Production image built
+- [ ] Offline package manifest matches `versions.json`
+- [ ] Internal SHA256SUMS and ZIP sidecar verified
+- [ ] Bundle installs without Git, build or pull
 - [ ] Critical/High vulnerability gate passed or exception approved
 - [ ] Backup and rollback reference recorded
 - [ ] Working tree clean
@@ -24,6 +28,7 @@
 - [ ] Frontend component tag/release created if changed
 - [ ] Process component tag/release created if changed
 - [ ] Releases point to the reviewed commit
+- [ ] Distribution component tag/release created if changed
 
 ## Deploy and verify
 

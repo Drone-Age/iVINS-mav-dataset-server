@@ -1,8 +1,9 @@
 # iVINS MAV Dataset Server
 
-The compatible bundle contains **Backend 3.3.0**, **Frontend 3.3.0** and
-**Process 1.0.0**. It is a bilingual public Web catalog for visual-inertial
-datasets and an authenticated immutable store for local iVINS artifacts.
+The compatible bundle contains **Backend 3.3.0**, **Frontend 3.3.0**,
+**Process 1.0.0** and **Distribution 1.0.0**. It is a bilingual public Web
+catalog for visual-inertial datasets and an authenticated immutable store for
+local iVINS artifacts.
 
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
@@ -31,15 +32,18 @@ over an untrusted plain-HTTP path.
 
 ## Component versions
 
-Backend, Frontend and Process use independent SemVer versions. The canonical
+Backend, Frontend, Process and Distribution use independent SemVer versions.
+The canonical
 compatibility manifest is [versions.json](versions.json), is validated by the
 Backend at startup and is available from `GET /versions`. The legacy
 `server_version` response field remains an alias for the Backend version.
 
 New Git tags and GitHub releases use `backend-vX.Y.Z`,
-`frontend-vX.Y.Z` and `process-vX.Y.Z`. The Docker image tag follows the
-Backend version. See [VERSIONING.md](VERSIONING.md) for the compatibility and
-release rules, and [process/PROCESS.md](process/PROCESS.md) for the normative
+`frontend-vX.Y.Z`, `process-vX.Y.Z` and `distribution-vX.Y.Z`. The Docker image
+tag follows Backend; installable bundles follow Distribution. See
+[VERSIONING.md](VERSIONING.md) for compatibility and release rules,
+[distribution/DISTRIBUTION.md](distribution/DISTRIBUTION.md) for offline
+deployment, and [process/PROCESS.md](process/PROCESS.md) for the normative
 Process policies and operating procedures.
 
 ## Docker quick start
@@ -61,6 +65,34 @@ Open:
 
 - `http://127.0.0.1:8080/` for the public Datasets catalog;
 - `http://127.0.0.1:8080/admin` for administration.
+
+## Offline deployment without Git
+
+Distribution 1.0.0 produces a complete ZIP for a target architecture. The
+package contains the saved Docker image, an offline Compose file, integrity
+manifests and install/update/rollback scripts. It contains no database,
+BAG files or API keys.
+
+```powershell
+.\tools\build-release-bundle.ps1
+```
+
+Copy the generated ZIP and `.sha256` sidecar to the target, verify the
+sidecar, extract the ZIP, then run:
+
+```powershell
+Copy-Item .env.example .env
+.\install.ps1
+.\new-admin-key.ps1 -Name initial-admin
+```
+
+Deployment needs Docker Engine and Compose, but needs neither Git nor Internet
+access. `compose.release.yaml` has no `build` section and uses
+`pull_policy: never`. A future native Windows Installer is reserved as an
+additional Distribution format and will use the same component compatibility,
+data and API-key rules.
+
+See [the Distribution guide](distribution/DISTRIBUTION.md).
 
 ## API keys
 
@@ -172,7 +204,7 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade to Backend/Frontend 3.3.0 and Process 1.0.0
+## Upgrade to Backend/Frontend 3.3.0, Process 1.0.0 and Distribution 1.0.0
 
 1. Back up the complete `var/` directory.
 2. Deploy the Backend 3.3.0 image against the same data directory.
@@ -182,7 +214,8 @@ server-side size and SHA-256 verification.
    family-specific profiles in the catalog and assign values such as `dev_01`
    where needed.
 5. Review the seeded public Datasets and mirrors in `/admin`.
-6. Confirm `/health` reports Backend 3.3.0, Frontend 3.3.0, Process 1.0.0,
+6. Confirm `/health` reports Backend 3.3.0, Frontend 3.3.0, Process 1.0.0
+   and Distribution 1.0.0,
    `schema_version: 1.0` and `key_store_ready: true`.
 7. Confirm `/versions` matches `versions.json` and the deployed component
    compatibility ranges.
@@ -195,6 +228,8 @@ docker compose build
 docker run --rm --entrypoint python `
   -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.3.0 `
   -m unittest discover -s tests -v
+
+.\tools\build-release-bundle.ps1 -SkipBuild
 
 docker scout cves ivins-mav-dataset-server:3.3.0 `
   --only-severity critical,high

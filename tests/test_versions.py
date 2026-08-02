@@ -15,8 +15,8 @@ class ComponentVersioningTest(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / "versions.json"
         manifest = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(
-            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0"},
-            {name: manifest[name] for name in ("backend", "frontend", "process")},
+            {"backend": "3.3.0", "frontend": "3.3.0", "process": "1.0.0", "distribution": "1.0.0"},
+            {name: manifest[name] for name in ("backend", "frontend", "process", "distribution")},
         )
         self.assertEqual(manifest, server.VERSION_MANIFEST)
         self.assertEqual(manifest["backend"], server.SERVER_VERSION)
@@ -26,6 +26,11 @@ class ComponentVersioningTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "versions.json"
             invalid_version = {**valid, "frontend": "3.3"}
+            invalid_distribution = {**valid, "distribution": "v1"}
+            path.write_text(json.dumps(invalid_distribution), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "invalid distribution"):
+                server.load_version_manifest(path)
+
             path.write_text(json.dumps(invalid_version), encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "invalid frontend"):
                 server.load_version_manifest(path)
@@ -49,6 +54,30 @@ class ComponentVersioningTest(unittest.TestCase):
         process = (root / "process" / "PROCESS.md").read_text(encoding="utf-8")
         self.assertIn("Версія Process: **1.0.0**", process)
         self.assertIn("Обробка інцидентів", process)
+
+        release_compose = (root / "compose.release.yaml").read_text(encoding="utf-8")
+        self.assertNotIn("build:", release_compose)
+        self.assertIn("pull_policy: never", release_compose)
+        self.assertIn("ivins-mav-dataset-server:3.3.0", release_compose)
+
+        distribution = (root / "distribution" / "DISTRIBUTION.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Distribution version: **1.0.0**", distribution)
+        self.assertIn("windows-installer", distribution)
+        for name in (
+            "install.ps1",
+            "update.ps1",
+            "rollback.ps1",
+            "verify.ps1",
+            "new-admin-key.ps1",
+        ):
+            self.assertTrue((root / "distribution" / "docker" / name).is_file())
+
+        schema = json.loads(
+            (root / "distribution" / "package-manifest.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(["docker-bundle", "windows-installer"], schema["properties"]["package_format"]["enum"])
 
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
         compose = (root / "compose.yaml").read_text(encoding="utf-8")

@@ -1,16 +1,22 @@
 # Component versioning
 
-The repository contains three independently versioned components:
+The repository contains four independently versioned components:
 
 | Component | Scope | Current version | Git tag |
 |---|---|---:|---|
 | Backend | HTTP API, authentication, storage, database migrations and server runtime | 3.3.0 | `backend-v3.3.0` |
 | Frontend | Public catalog and administration Web interface | 3.3.0 | `frontend-v3.3.0` |
 | Process | Policies, permissions, prohibitions, standards and operating procedures | 1.0.0 | `process-v1.0.0` |
+| Distribution | Offline bundles, installers, package manifests and deployment automation | 1.0.0 | `distribution-v1.0.0` |
 
 `versions.json` is the canonical machine-readable manifest. The Backend
 loads and validates it at startup and exposes it at `GET /versions`. The same
 values are returned by health, session, catalog and administration responses.
+
+Distribution is technology-neutral. A Distribution version may provide one or
+more package formats such as `docker-bundle` or `windows-installer`. Adding a
+compatible installer format changes Distribution without forcing Backend,
+Frontend or Process to change.
 
 ## Semantic versioning
 
@@ -37,10 +43,15 @@ Compatibility constraints use npm-style SemVer ranges:
   "backend": "3.3.0",
   "frontend": "3.3.0",
   "process": "1.0.0",
+  "distribution": "1.0.0",
   "compatibility": {
     "frontend_requires_backend": ">=3.3.0 <4.0.0",
     "process_applies_to_backend": ">=3.3.0 <4.0.0",
-    "process_applies_to_frontend": ">=3.3.0 <4.0.0"
+    "process_applies_to_frontend": ">=3.3.0 <4.0.0",
+    "process_applies_to_distribution": ">=1.0.0 <2.0.0",
+    "distribution_packages_backend": ">=3.3.0 <4.0.0",
+    "distribution_packages_frontend": ">=3.3.0 <4.0.0",
+    "distribution_requires_process": ">=1.0.0 <2.0.0"
   }
 }
 ```
@@ -55,12 +66,14 @@ New releases use component-prefixed tags:
 
 - `backend-vMAJOR.MINOR.PATCH`;
 - `frontend-vMAJOR.MINOR.PATCH`;
-- `process-vMAJOR.MINOR.PATCH`.
+- `process-vMAJOR.MINOR.PATCH`;
+- `distribution-vMAJOR.MINOR.PATCH`.
 
 Historical aggregate `vX.Y.Z` tags remain valid historical records but are not
 used for new component releases. The Docker image tag follows the Backend
-version because the Backend is the deployable runtime. Its bundled Frontend and
-Process versions are always discoverable through `/versions`.
+version because the Backend is the runtime. Installable ZIP/MSI artifacts
+follow the Distribution version and declare all component versions in
+`package-manifest.json`. Runtime versions remain discoverable through `/versions`.
 
 Every component release must link the common commit SHA, its component
 changelog and the applicable compatibility manifest.

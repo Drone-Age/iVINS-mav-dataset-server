@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drone-age.github.io/ivins/package-manifest.schema.json",
+  "title": "iVINS Distribution Package Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "distribution",
+    "package_format",
+    "platform",
+    "components",
+    "compatibility",
+    "image",
+    "entrypoints",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "iVINS Dataset Server"},
+        "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"}
+      }
+    },
+    "package_format": {"enum": ["docker-bundle", "windows-installer"]},
+    "platform": {
+      "type": "object",
+      "required": ["os", "architecture"],
+      "properties": {
+        "os": {"type": "string"},
+        "architecture": {"type": "string"}
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "frontend", "process", "distribution"],
+      "properties": {
+        "backend": {"type": "string"},
+        "frontend": {"type": "string"},
+        "process": {"type": "string"},
+        "distribution": {"type": "string"}
+      }
+    },
+    "compatibility": {"type": "object", "minProperties": 1},
+    "image": {
+      "type": "object",
+      "required": ["reference", "archive", "image_id"],
+      "properties": {
+        "reference": {"type": "string"},
+        "archive": {"type": "string"},
+        "image_id": {"type": "string"}
+      }
+    },
+    "entrypoints": {
+      "type": "object",
+      "required": ["install", "update", "rollback", "verify"],
+      "properties": {
+        "install": {"type": "string"},
+        "update": {"type": "string"},
+        "rollback": {"type": "string"},
+        "verify": {"type": "string"}
+      }
+    },
+    "data": {
+      "type": "object",
+      "required": ["included", "persistent", "default_root"],
+      "properties": {
+        "included": {"const": false},
+        "persistent": {"const": true},
+        "default_root": {"type": "string"}
+      }
+    }
+  }
+}

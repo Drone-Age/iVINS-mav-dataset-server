@@ -32,7 +32,7 @@ def load_version_manifest(path: Path | None = None) -> dict[str, object]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("manifest_schema") != "1.0":
         raise RuntimeError("unsupported version manifest schema")
-    for component in ("backend", "frontend", "process"):
+    for component in ("backend", "frontend", "process", "distribution"):
         value = payload.get(component)
         if not isinstance(value, str) or not SEMVER_RE.fullmatch(value):
             raise RuntimeError(f"invalid {component} semantic version")
@@ -43,6 +43,10 @@ def load_version_manifest(path: Path | None = None) -> dict[str, object]:
         "frontend_requires_backend",
         "process_applies_to_backend",
         "process_applies_to_frontend",
+        "process_applies_to_distribution",
+        "distribution_packages_backend",
+        "distribution_packages_frontend",
+        "distribution_requires_process",
     )
     for rule in required_rules:
         value = compatibility.get(rule)
@@ -55,6 +59,7 @@ VERSION_MANIFEST = load_version_manifest()
 BACKEND_VERSION = str(VERSION_MANIFEST["backend"])
 FRONTEND_VERSION = str(VERSION_MANIFEST["frontend"])
 PROCESS_VERSION = str(VERSION_MANIFEST["process"])
+DISTRIBUTION_VERSION = str(VERSION_MANIFEST["distribution"])
 # Backward-compatible alias retained for v3 clients.
 SERVER_VERSION = BACKEND_VERSION
 FORMATS = {"rosbag", "rosbag2"}
@@ -70,6 +75,7 @@ def component_versions() -> dict[str, str]:
         "backend": BACKEND_VERSION,
         "frontend": FRONTEND_VERSION,
         "process": PROCESS_VERSION,
+        "distribution": DISTRIBUTION_VERSION,
     }
 
 
@@ -528,6 +534,7 @@ def health():
         frontend_version=FRONTEND_VERSION,
         process_version=PROCESS_VERSION,
         versions=component_versions(),
+        distribution_version=DISTRIBUTION_VERSION,
         key_store_ready=api_keys.active_key_count() > 0,
     )
 
@@ -1023,6 +1030,7 @@ def admin_overview():
         frontend_version=FRONTEND_VERSION,
         process_version=PROCESS_VERSION,
         versions=component_versions(),
+        distribution_version=DISTRIBUTION_VERSION,
         schema_version=SCHEMA_VERSION,
         active_keys=api_keys.active_key_count(),
         uploads=uploads,
