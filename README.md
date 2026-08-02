@@ -1,14 +1,14 @@
 # iVINS MAV Dataset Server
 
-Dataset Server v3.1 is a public Web catalog for visual-inertial datasets and an
+Dataset Server v3.2 is a bilingual public Web catalog for visual-inertial datasets and an
 authenticated immutable store for local iVINS artifacts.
 
 The public site at `/` is available without a key. It presents **Datasets** in
 family tables modeled after the
 [`Drone-Age/iVINS-mav-dataset`](https://github.com/Drone-Age/iVINS-mav-dataset)
 registry: stable ID, dataset name, length/size, ROS Bag, ROS Bag2, ground truth
-and configuration links. Each Dataset also has an independent iVINS profile
-that can be filtered separately from its family.
+and configuration links. Each Dataset also has a family-scoped iVINS profile;
+the available profile filter values follow the selected family.
 
 ## Access model
 
@@ -16,8 +16,9 @@ that can be filtered separately from its family.
   BAG mirrors. A guest cannot download any file stored on this server.
 - **User**: authenticates with a server-generated API key; can also download
   local artifacts using a short-lived single-use download ticket.
-- **Admin**: has user access plus `/admin` management for API keys, Datasets,
-  mirrors, uploads, artifacts and BAG files.
+- **Admin**: has user access plus an inline Dataset edit mode in the ordinary
+  filtered catalog. The mode is off by default. `/admin` remains available for
+  API keys, mirrors, uploads, artifacts and BAG files, and opens on Datasets.
 
 The browser keeps an entered API key only in page memory. It is never placed in
 a URL, cookie, local storage or session storage, and is forgotten on reload.
@@ -91,15 +92,27 @@ mirrors, through controlled endpoints. Arbitrary SQL is deliberately absent.
 
 ### Dataset profiles
 
-`profile` is a lowercase stable identifier such as `general`, `dev_01` or
-`dev_04`. When it is omitted or blank, the server stores `general`. The public
-site exposes a dedicated profile filter, while the administration interface
-shows and edits the value explicitly. Artifact upload and manual BAG metadata
-may also include `profile`; server-side validation remains authoritative.
+`profile` is a lowercase stable identifier such as `all`, `dev_01` or
+`dev_04`. When it is omitted or blank, the server stores `all`, meaning that
+the Dataset applies to every profile in its family. Profile names are scoped
+to a family: the profile selector is enabled after a family is selected and
+then lists only that family's specific profiles. Filtering by a specific
+profile also includes the family's `all` Datasets.
 
-On first v3.1 startup, existing Dataset rows are migrated in place without
-deletion: their profile becomes `general`. The bundled `iv.dev.4.ff.1` record
-is classified as `dev_04`.
+The administration interface shows and edits the value explicitly. Artifact
+upload and manual BAG metadata may also include `profile`; server-side
+validation remains authoritative.
+
+On first v3.2 startup, existing Dataset rows are migrated in place without
+deletion: missing, blank and former `general` values become `all`. Specific
+profiles are preserved, and the bundled `iv.dev.4.ff.1` record remains
+classified as `dev_04`.
+
+## Interface languages
+
+Both the public catalog and administration interface can be switched between
+Ukrainian and English. Language selection is presentation-only and never
+changes Dataset content or authorization state.
 
 ## Local artifact downloads
 
@@ -144,16 +157,17 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade to v3.1
+## Upgrade to v3.2
 
 1. Back up the complete `var/` directory.
-2. Deploy the v3.1 image against the same data directory.
+2. Deploy the v3.2 image against the same data directory.
 3. Existing `admin` keys remain admins; `reader` and `publisher` keys are
    migrated to `user`.
-4. Existing Dataset rows receive `profile: general`; review profiles in
-   `/admin` and assign additional values such as `dev_01` where needed.
+4. Existing missing, blank and `general` Dataset profiles become `all`; review
+   family-specific profiles in the catalog and assign values such as `dev_01`
+   where needed.
 5. Review the seeded public Datasets and mirrors in `/admin`.
-6. Confirm `/health` reports `server_version: 3.1.0`, `schema_version: 1.0`, and
+6. Confirm `/health` reports `server_version: 3.2.0`, `schema_version: 1.0`, and
    `key_store_ready: true`.
 
 ## Verification
@@ -162,10 +176,10 @@ server-side size and SHA-256 verification.
 docker compose config --quiet
 docker compose build
 docker run --rm --entrypoint python `
-  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.1.0 `
+  -v "${PWD}:/src:ro" -w /src ivins-mav-dataset-server:3.2.0 `
   -m unittest discover -s tests -v
 
-docker scout cves ivins-mav-dataset-server:3.1.0 `
+docker scout cves ivins-mav-dataset-server:3.2.0 `
   --only-severity critical,high
 ```
 

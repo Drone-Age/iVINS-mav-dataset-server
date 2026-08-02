@@ -49,6 +49,14 @@ class AdminWebTest(unittest.TestCase):
         self.assertNotIn("sessionStorage", source)
         self.assertNotIn("document.cookie", source)
         self.assertNotIn("innerHTML", source)
+        self.assertIn("adminDatasetEditMode", source)
+        self.assertIn("adminFamilyFilter", source)
+        self.assertIn("adminProfileFilter", source)
+
+        html = self.client.get("/admin").get_data(as_text=True)
+        self.assertIn("data-language-selector", html)
+        self.assertIn('data-view="datasets"', html)
+        self.assertIn("Режим редагування", html)
 
     def test_roles_are_enforced_server_side(self):
         self.assertEqual(200, self.client.get("/v1/catalog", headers=self.user).status_code)

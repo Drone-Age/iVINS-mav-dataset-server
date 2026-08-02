@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dataset Server v2: authenticated metadata and immutable artifact storage."""
+"""Dataset Server v3.2: public catalog and authenticated artifact storage."""
 
 from __future__ import annotations
 
@@ -24,12 +24,12 @@ from flask import Flask, g, jsonify, render_template, request, send_file
 import api_keys
 
 SCHEMA_VERSION = "1.0"
-SERVER_VERSION = "3.1.0"
+SERVER_VERSION = "3.2.0"
 FORMATS = {"rosbag", "rosbag2"}
 ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 VERSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 PROFILE_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
-DATASET_SEED_VERSION = "2026-08-02.2"
+DATASET_SEED_VERSION = "2026-08-02.3"
 app = Flask(__name__)
 
 
@@ -61,7 +61,7 @@ def seed_datasets(db: sqlite3.Connection) -> None:
             "(id,family,profile,name,description,measurement,homepage_url,"
             "ground_truth_url,config_url,visible) VALUES(?,?,?,?,?,?,?,?,?,1)",
             (
-                item["id"], item["family"], item.get("profile", "general"),
+                item["id"], item["family"], item.get("profile", "all"),
                 item["name"], item.get("description", ""), item.get("measurement", ""),
                 item.get("homepage_url"),
                 item.get("ground_truth_url"), item.get("config_url"),
@@ -116,7 +116,7 @@ def connect() -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS datasets (
           id TEXT PRIMARY KEY,
           family TEXT NOT NULL,
-          profile TEXT NOT NULL DEFAULT 'general',
+          profile TEXT NOT NULL DEFAULT 'all',
           name TEXT NOT NULL,
           description TEXT NOT NULL DEFAULT '',
           measurement TEXT NOT NULL DEFAULT '',
@@ -158,9 +158,12 @@ def connect() -> sqlite3.Connection:
     profile_added = "profile" not in dataset_columns
     if profile_added:
         db.execute(
-            "ALTER TABLE datasets ADD COLUMN profile TEXT NOT NULL DEFAULT 'general'"
+            "ALTER TABLE datasets ADD COLUMN profile TEXT NOT NULL DEFAULT 'all'"
         )
-    db.execute("UPDATE datasets SET profile='general' WHERE profile IS NULL OR profile=''")
+    db.execute(
+        "UPDATE datasets SET profile='all' "
+        "WHERE profile IS NULL OR profile='' OR profile='general'"
+    )
     if profile_added:
         db.execute(
             "UPDATE datasets SET profile='dev_04' WHERE id='iv.dev.4.ff.1'"
@@ -385,12 +388,14 @@ def external_url(value: object, field: str) -> str | None:
 
 def normalize_profile(value: object) -> str:
     if value is None:
-        return "general"
+        return "all"
     if not isinstance(value, str):
         raise TypeError("profile must be text")
     profile = value.strip()
     if not profile:
-        return "general"
+        return "all"
+    if profile == "general":
+        return "all"
     if len(profile) > 64 or not PROFILE_RE.fullmatch(profile):
         raise ValueError("profile must be a lowercase stable identifier")
     return profile
@@ -560,10 +565,18 @@ def public_dataset_items(db: sqlite3.Connection) -> list[dict[str, object]]:
 def public_datasets():
     with database() as db:
         items = public_dataset_items(db)
+    profiles_by_family = {
+        family: sorted(
+            {item["profile"] for item in items if item["family"] == family},
+            key=str.casefold,
+        )
+        for family in sorted({item["family"] for item in items}, key=str.casefold)
+    }
     return jsonify(
         datasets=items,
         families=sorted({item["family"] for item in items}, key=str.casefold),
         profiles=sorted({item["profile"] for item in items}, key=str.casefold),
+        profiles_by_family=profiles_by_family,
         total=len(items),
         server_version=SERVER_VERSION,
     )

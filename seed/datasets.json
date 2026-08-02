@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-02.2",
+  "version": "2026-08-02.3",
   "datasets": [
     {
       "id": "e.1.1.e", "family": "EuRoC MAV", "name": "V1_01_easy", "measurement": "58 m",
