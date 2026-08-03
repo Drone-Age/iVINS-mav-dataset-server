@@ -61,22 +61,25 @@ Invoke-Docker -Arguments @("info", "--format", "{{.ServerVersion}}")
 
 $archive = Join-Path $bundleRoot ($manifest.image.archive.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
 Invoke-Docker -Arguments @("load", "--input", $archive)
+if ($manifest.PSObject.Properties.Name -contains "proxy") {
+    $proxyArchive = Join-Path $bundleRoot ($manifest.proxy.archive.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+    Invoke-Docker -Arguments @("load", "--input", $proxyArchive)
+}
 
 $composeFile = Join-Path $bundleRoot "compose.release.yaml"
 $base = @("compose", "--env-file", $EnvFile, "-f", $composeFile)
 Invoke-Docker -Arguments ($base + @("config", "--quiet"))
 Invoke-Docker -Arguments ($base + @("up", "-d"))
 
-$port = Get-EnvValue -Name "DSM_PORT" -Default "8080"
-if ($port -notmatch '^[0-9]{1,5}$' -or [int]$port -lt 1 -or [int]$port -gt 65535) {
-    throw "DSM_PORT is invalid: $port"
-}
-$baseUri = "http://127.0.0.1:$port"
 $deadline = [DateTime]::UtcNow.AddSeconds($HealthTimeoutSeconds)
 $health = $null
 while ([DateTime]::UtcNow -lt $deadline) {
     try {
-        $health = Invoke-RestMethod -Uri "$baseUri/health" -Method Get -TimeoutSec 3
+        [string]$healthJson = & docker @base exec -T server python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read().decode())"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Internal health request failed."
+        }
+        $health = $healthJson | ConvertFrom-Json
         if ($health.status -eq "ok") {
             break
         }
@@ -88,7 +91,11 @@ if ($null -eq $health -or $health.status -ne "ok") {
     throw "Service did not become healthy within $HealthTimeoutSeconds seconds."
 }
 
-$deployed = Invoke-RestMethod -Uri "$baseUri/versions" -Method Get -TimeoutSec 5
+[string]$versionsJson = & docker @base exec -T server python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/versions', timeout=5).read().decode())"
+if ($LASTEXITCODE -ne 0) {
+    throw "Internal versions request failed."
+}
+$deployed = $versionsJson | ConvertFrom-Json
 foreach ($component in @("backend", "frontend", "process", "distribution")) {
     $expected = $manifest.components.$component
     $actual = $deployed.$component
@@ -97,7 +104,8 @@ foreach ($component in @("backend", "frontend", "process", "distribution")) {
     }
 }
 
-Write-Host "DataSetsManager Server is healthy at $baseUri."
+Write-Host "DataSetsManager Server is healthy on the private Compose network."
+Write-Host "Run .\verify-tls.ps1 after DNS and ACME certificate issuance to qualify the public endpoint."
 Write-Host "Backend $($deployed.backend), Frontend $($deployed.frontend), Process $($deployed.process), Distribution $($deployed.distribution)."
 if (-not $health.key_store_ready) {
     Write-Warning "No active API key exists. Run .\new-admin-key.ps1 locally."

@@ -6,7 +6,7 @@ Distribution is the independently versioned delivery layer for DataSetsManager
 Server. It packages compatible Backend, Frontend and Process versions into one
 installable artifact without changing their component versions.
 
-Current Distribution version: **2.0.0**
+Current Distribution version: **2.1.0**
 
 ## Package formats
 
@@ -25,12 +25,13 @@ increments Distribution MAJOR. Corrections increment PATCH.
 
 The generated ZIP contains:
 
-- the complete Docker image as an `images/*.tar` archive;
+- the complete Server image and pinned Caddy image as `images/*.tar` archives;
+- `Caddyfile` with automatic HTTPS, HTTP redirect, HSTS and no access log;
 - `compose.release.yaml` with no `build` section and `pull_policy: never`;
 - `package-manifest.json` and the canonical `versions.json`;
 - `SHA256SUMS` plus a SHA-256 sidecar for the ZIP;
 - `install.ps1`, `update.ps1`, `rollback.ps1`,
-  `verify.ps1` and `new-admin-key.ps1`;
+  `verify.ps1`, `verify-tls.ps1`, `new-admin-key.ps1` and `new-user-key.ps1`;
 - Process, versioning and component changelog documents.
 
 The package never contains API keys, the SQLite database, BAG files or other
@@ -67,11 +68,16 @@ Extract the ZIP and run:
 Copy-Item .env.example .env
 .\install.ps1
 .\new-admin-key.ps1 -Name initial-admin
+.\new-user-key.ps1 -Name dataset-e2e
+.\verify-tls.ps1
 ```
 
 The installer verifies every bundled file, loads the image locally, validates
 Compose, starts the service, checks `/health` and `/versions`, and confirms
-that the deployed component versions match the package manifest.
+that the deployed component versions match the package manifest. Image loading
+is offline; first certificate issuance and renewal require correct public DNS
+and outbound ACME access. `verify-tls.ps1` proves the HTTP redirect, certificate,
+HSTS and public health endpoint before a bearer credential is used.
 
 Use `update.ps1` for a backup-first update. Use `rollback.ps1` with the
 path to a previously extracted bundle. Automatic rollback does not restore

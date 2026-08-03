@@ -9,7 +9,7 @@ The repository contains four independently versioned components:
 | Backend | HTTP API, authentication, storage, database migrations and server runtime | 4.0.0 | `backend-v4.0.0` |
 | Frontend | Public catalog and administration Web interface | 4.0.0 | `frontend-v4.0.0` |
 | Process dependency | Canonical policies in `DataSetsManager/DataSetsManager` | 2.0.0 | `process-v2.0.0` |
-| Distribution | Offline bundles, installers, package manifests and deployment automation | 2.0.0 | `distribution-v2.0.0` |
+| Distribution | Offline bundles, installers, package manifests and deployment automation | 2.1.0 | `distribution-v2.1.0` |
 
 `versions.json` is the canonical machine-readable manifest. The Backend
 loads and validates it at startup and exposes it at `GET /versions`. The same
@@ -46,7 +46,7 @@ Compatibility constraints use npm-style SemVer ranges:
   "backend": "4.0.0",
   "frontend": "4.0.0",
   "process": "2.0.0",
-  "distribution": "2.0.0",
+  "distribution": "2.1.0",
   "compatibility": {
     "frontend_requires_backend": ">=4.0.0 <5.0.0",
     "process_applies_to_backend": ">=4.0.0 <5.0.0",

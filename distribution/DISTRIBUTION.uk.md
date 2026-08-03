@@ -6,7 +6,17 @@ Distribution — незалежно версіонований рівень по
 Server. Він пакує сумісні версії Backend, Frontend і Process в один
 інсталяційний артефакт, не змінюючи їхні component versions.
 
-Поточна версія Distribution: **2.0.0**
+Поточна версія Distribution: **2.1.0**
+
+Docker bundle містить зафіксований Caddy 2.11.4. Він автоматично отримує й
+поновлює TLS-сертифікат, перенаправляє HTTP на HTTPS і додає HSTS. Gunicorn не
+має host-порту й доступний лише у приватній Compose-мережі. Образи Server і
+Caddy та `Caddyfile` входять до SHA-256 inventory. Для першої видачі й
+поновлення сертифіката потрібні коректний DNS і вихідний доступ до ACME.
+
+Після встановлення виконайте `verify-tls.ps1`, а потім створіть окремий
+`user`-ключ через `new-user-key.ps1`. Зберігайте його лише як
+`DSM_SERVER_TOKEN`; ключі, які могли пройти через незахищений HTTP, відкличте.
 
 ## Формати пакетів
 
@@ -25,12 +35,13 @@ MAJOR. Виправлення збільшують PATCH.
 
 Створений ZIP містить:
 
-- повний Docker image як архів `images/*.tar`;
+- повні образи Server і зафіксованого Caddy як архіви `images/*.tar`;
+- `Caddyfile` з automatic HTTPS, перенаправленням HTTP, HSTS і вимкненим access log;
 - `compose.release.yaml` без секції `build` і з `pull_policy: never`;
 - `package-manifest.json` і канонічний `versions.json`;
 - `SHA256SUMS` та SHA-256 sidecar для ZIP;
 - `install.ps1`, `update.ps1`, `rollback.ps1`, `verify.ps1` і
-  `new-admin-key.ps1`;
+  `new-admin-key.ps1`, `new-user-key.ps1` і `verify-tls.ps1`;
 - документи Process, versioning і component changelog.
 
 Пакет ніколи не містить API-ключів, бази SQLite, BAG-файлів або інших runtime
@@ -66,6 +77,8 @@ host і пакує tools install/uninstall/verify/key-management. Runtime-дан
 Copy-Item .env.example .env
 .\install.ps1
 .\new-admin-key.ps1 -Name initial-admin
+.\new-user-key.ps1 -Name dataset-e2e
+.\verify-tls.ps1
 ```
 
 Installer перевіряє кожний файл пакета, локально завантажує image, валідовує

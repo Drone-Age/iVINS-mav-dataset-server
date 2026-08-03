@@ -3,7 +3,7 @@
 [Українська версія](README.uk.md)
 
 The compatible bundle contains **Backend 4.0.0**, **Frontend 4.0.0**,
-**Process 2.0.0** and **Distribution 2.0.0**. It is a bilingual public Web
+**Process 2.0.0** and **Distribution 2.1.0**. It is a bilingual public Web
 catalog for visual-inertial datasets and an authenticated immutable store for
 local iVINS artifacts.
 
@@ -27,10 +27,10 @@ the available profile filter values follow the selected family.
 The browser keeps an entered API key only in page memory. It is never placed in
 a URL, cookie, local storage or session storage, and is forgotten on reload.
 
-Backend 4 intentionally serves **HTTP**. HTTP does not protect API keys or
-download tickets from observation in transit. For Internet exposure, terminate
-TLS at a reverse proxy/router or use a trusted VPN. Do not expose a bearer key
-over an untrusted plain-HTTP path.
+Backend 4 intentionally serves HTTP only inside the private Compose network.
+Distribution 2.1.0 exposes Caddy on ports 80/443, redirects HTTP to HTTPS,
+manages the public certificate automatically and adds HSTS. Never send a bearer
+key to a non-loopback plain-HTTP endpoint.
 
 ## Component versions
 
@@ -70,10 +70,10 @@ Open:
 
 ## Offline deployment without Git
 
-Distribution 2.0.0 produces a complete ZIP for a target architecture. The
-package contains the saved Docker image, an offline Compose file, integrity
-manifests and install/update/rollback scripts. It contains no database,
-BAG files or API keys.
+Distribution 2.1.0 produces a complete ZIP for a target architecture. The
+package contains the saved Server and pinned Caddy images, TLS configuration,
+an offline Compose file, integrity manifests and install/update/rollback
+scripts. It contains no database, BAG files or API keys.
 
 ```powershell
 .\tools\build-release-bundle.ps1
@@ -86,13 +86,16 @@ sidecar, extract the ZIP, then run:
 Copy-Item .env.example .env
 .\install.ps1
 .\new-admin-key.ps1 -Name initial-admin
+.\new-user-key.ps1 -Name dataset-e2e
+.\verify-tls.ps1
 ```
 
-Deployment needs Docker Engine and Compose, but needs neither Git nor Internet
-access. `compose.release.yaml` has no `build` section and uses
-`pull_policy: never`. A future native Windows Installer is reserved as an
-additional Distribution format and will use the same component compatibility,
-data and API-key rules.
+Package installation needs Docker Engine and Compose, but needs neither Git nor
+an image registry. `compose.release.yaml` has no `build` section and uses
+`pull_policy: never`. Public certificate issuance and renewal require working
+DNS plus outbound access to an ACME certificate authority. Store the one-time
+user key only in the approved secret store and expose it to clients through
+`DSM_SERVER_TOKEN`.
 
 See [the Distribution guide](distribution/DISTRIBUTION.md) and the
 [local Distribution 2.0 acceptance evidence](docs/acceptance/distribution-2.0.0.md).
@@ -207,7 +210,7 @@ Published `(dataset_id, format, version)` identities remain immutable. An
 admin may migrate legacy nested v2 paths into the flat BAG directory only after
 server-side size and SHA-256 verification.
 
-## Upgrade to Backend/Frontend 4.0.0, Process 2.0.0 and Distribution 2.0.0
+## Upgrade to Backend/Frontend 4.0.0, Process 2.0.0 and Distribution 2.1.0
 
 1. Back up the complete `var/` directory.
 2. Deploy the Backend 4.0.0 image against the same data directory.
@@ -218,7 +221,7 @@ server-side size and SHA-256 verification.
    where needed.
 5. Review the seeded public Datasets and mirrors in `/admin`.
 6. Confirm `/health` reports Backend 4.0.0, Frontend 4.0.0, Process 2.0.0
-   and Distribution 2.0.0,
+   and Distribution 2.1.0,
    `schema_version: 1.0` and `key_store_ready: true`.
 7. Confirm `/versions` matches `versions.json` and the deployed component
    compatibility ranges.

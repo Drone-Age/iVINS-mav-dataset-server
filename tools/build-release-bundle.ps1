@@ -34,6 +34,7 @@ Invoke-Docker -Arguments @("info", "--format", "{{.ServerVersion}}")
 
 $imageReference = "datasetsmanager-server:$($versions.backend)"
 $legacyImageReference = "ivins-mav-dataset-server:$($versions.backend)"
+$proxyReference = "caddy:2.11.4-alpine"
 if (-not $SkipBuild) {
     Invoke-Docker -Arguments @(
         "buildx", "build",
@@ -45,6 +46,7 @@ if (-not $SkipBuild) {
     )
 }
 Invoke-Docker -Arguments @("tag", $imageReference, $legacyImageReference)
+Invoke-Docker -Arguments @("pull", "--platform", $Platform, $proxyReference)
 
 [string]$imageId = & docker image inspect --format "{{.Id}}" $imageReference
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($imageId)) {
@@ -62,6 +64,17 @@ if ($LASTEXITCODE -ne 0) {
 $actualPlatform = "$($imageOs.Trim())/$($imageArchitecture.Trim())"
 if ($actualPlatform -ne $Platform) {
     throw "Image platform mismatch: expected $Platform, got $actualPlatform."
+}
+
+[string]$proxyImageId = & docker image inspect --format "{{.Id}}" $proxyReference
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($proxyImageId)) {
+    throw "TLS proxy image is unavailable: $proxyReference"
+}
+$proxyImageId = $proxyImageId.Trim()
+[string]$proxyOs = & docker image inspect --format "{{.Os}}" $proxyReference
+[string]$proxyArchitecture = & docker image inspect --format "{{.Architecture}}" $proxyReference
+if ($LASTEXITCODE -ne 0 -or "$($proxyOs.Trim())/$($proxyArchitecture.Trim())" -ne $Platform) {
+    throw "TLS proxy image platform mismatch: expected $Platform."
 }
 
 $outputRoot = [System.IO.Path]::GetFullPath($OutputDirectory)
@@ -83,9 +96,14 @@ $imageArchiveName = "datasetsmanager-server_$($versions.backend)_$platformName.t
 $imageArchiveRelative = "images/$imageArchiveName"
 $imageArchive = Join-Path $stage ($imageArchiveRelative.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
 Invoke-Docker -Arguments @("save", "--output", $imageArchive, $imageReference, $legacyImageReference)
+$proxyArchiveName = "caddy_2.11.4-alpine_$platformName.tar"
+$proxyArchiveRelative = "images/$proxyArchiveName"
+$proxyArchive = Join-Path $stage ($proxyArchiveRelative.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+Invoke-Docker -Arguments @("save", "--output", $proxyArchive, $proxyReference)
 
 $rootFiles = @(
     "compose.release.yaml",
+    "Caddyfile",
     ".env.example",
     "versions.json"
 )
@@ -128,12 +146,20 @@ $manifest = [ordered]@{
         archive = $imageArchiveRelative
         image_id = $imageId
     }
+    proxy = [ordered]@{
+        reference = $proxyReference
+        archive = $proxyArchiveRelative
+        image_id = $proxyImageId
+        config = "Caddyfile"
+    }
     entrypoints = [ordered]@{
         install = "install.ps1"
         update = "update.ps1"
         rollback = "rollback.ps1"
         verify = "verify.ps1"
         create_admin_key = "new-admin-key.ps1"
+        create_user_key = "new-user-key.ps1"
+        verify_tls = "verify-tls.ps1"
     }
     data = [ordered]@{
         included = $false
@@ -175,5 +201,7 @@ $sidecar = "$zipHash *$([System.IO.Path]::GetFileName($zipPath))"
     sha256 = $zipHash
     image = $imageReference
     image_id = $imageId
+    proxy = $proxyReference
+    proxy_image_id = $proxyImageId
     platform = $Platform
 } | Format-List

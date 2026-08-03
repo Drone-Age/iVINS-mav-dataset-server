@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/DataSetsManager/server/releases/download/schema-distribution-v2.0.0/package-manifest.schema.json",
+  "$id": "https://github.com/DataSetsManager/server/releases/download/schema-distribution-v2.1.0/package-manifest.schema.json",
   "title": "DataSetsManager Distribution Package Manifest",
   "type": "object",
   "$defs": {
@@ -59,6 +59,17 @@
         "reference": {"type": "string"},
         "archive": {"type": "string"},
         "image_id": {"type": "string"}
+      }
+    },
+    "proxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reference", "archive", "image_id", "config"],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1},
+        "archive": {"type": "string", "minLength": 1},
+        "image_id": {"type": "string", "minLength": 1},
+        "config": {"const": "Caddyfile"}
       }
     },
     "runtime": {

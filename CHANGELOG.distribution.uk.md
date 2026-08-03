@@ -2,6 +2,13 @@
 
 [English version](CHANGELOG.distribution.md)
 
+## 2.1.0 — 2026-08-03
+
+- До Docker bundle додано зафіксований Caddy 2.11.4 з automatic HTTPS,
+  перенаправленням HTTP та HSTS; Gunicorn залишено у приватній Compose-мережі.
+- Додано перевірку TLS та інструмент одноразового створення окремого `user`-ключа.
+- До integrity manifest додано образ і конфігурацію proxy; access log вимкнено.
+
 ## 2.0.0 — 2026-08-02
 
 - OCI та bundle-артефакти перейменовано на `datasetsmanager-server`.

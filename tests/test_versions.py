@@ -15,7 +15,7 @@ class ComponentVersioningTest(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / "versions.json"
         manifest = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(
-            {"backend": "4.0.0", "frontend": "4.0.0", "process": "2.0.0", "distribution": "2.0.0"},
+            {"backend": "4.0.0", "frontend": "4.0.0", "process": "2.0.0", "distribution": "2.1.0"},
             {name: manifest[name] for name in ("backend", "frontend", "process", "distribution")},
         )
         self.assertEqual(manifest, server.VERSION_MANIFEST)
@@ -59,11 +59,13 @@ class ComponentVersioningTest(unittest.TestCase):
         self.assertNotIn("build:", release_compose)
         self.assertIn("pull_policy: never", release_compose)
         self.assertIn("datasetsmanager-server:4.0.0", release_compose)
+        self.assertIn("caddy:2.11.4-alpine", release_compose)
+        self.assertIn("condition: service_healthy", release_compose)
 
         distribution = (root / "distribution" / "DISTRIBUTION.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Distribution version: **2.0.0**", distribution)
+        self.assertIn("Current Distribution version: **2.1.0**", distribution)
         self.assertIn("windows-portable", distribution)
         for name in (
             "install.ps1",
@@ -71,6 +73,8 @@ class ComponentVersioningTest(unittest.TestCase):
             "rollback.ps1",
             "verify.ps1",
             "new-admin-key.ps1",
+            "new-user-key.ps1",
+            "verify-tls.ps1",
         ):
             self.assertTrue((root / "distribution" / "docker" / name).is_file())
 
@@ -90,6 +94,9 @@ class ComponentVersioningTest(unittest.TestCase):
         ):
             self.assertTrue((root / "distribution" / "windows" / name).is_file())
         self.assertTrue((root / "distribution" / "common" / "verify-integrity.ps1").is_file())
+        caddyfile = (root / "Caddyfile").read_text(encoding="utf-8")
+        self.assertIn("Strict-Transport-Security", caddyfile)
+        self.assertIn("reverse_proxy server:8080", caddyfile)
 
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
