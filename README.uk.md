@@ -3,7 +3,7 @@
 [English version](README.md)
 
 Сумісний комплект містить **Backend 4.0.0**, **Frontend 4.0.0**,
-**Process 2.0.0** і **Distribution 2.0.0**. Це двомовний публічний вебкаталог
+**Process 2.0.0** і **Distribution 2.1.0**. Це двомовний публічний вебкаталог
 наборів візуально-інерціальних даних і автентифіковане незмінне сховище
 локальних артефактів iVINS.
 
@@ -30,10 +30,10 @@ ID, назва набору, довжина/розмір, посилання ROS
 потрапляє до URL, cookie, local storage або session storage та забувається після
 перезавантаження сторінки.
 
-Backend 4 навмисно обслуговує **HTTP**. HTTP не захищає API-ключі або квитки
-завантаження від перехоплення під час передавання. Для доступу з Інтернету
-завершуйте TLS на reverse proxy/маршрутизаторі або використовуйте довірену VPN.
-Не передавайте bearer-ключ через недовірений незашифрований HTTP-маршрут.
+Backend 4 обслуговує HTTP лише всередині приватної Compose-мережі. Distribution
+2.1.0 відкриває Caddy на портах 80/443, перенаправляє HTTP на HTTPS, автоматично
+керує публічним сертифікатом і додає HSTS. Не передавайте bearer-ключ через
+незашифрований HTTP endpoint, крім loopback test-server.
 
 ## Версії компонентів
 
@@ -72,7 +72,7 @@ Invoke-RestMethod http://127.0.0.1:8080/health
 
 ## Автономне розгортання без Git
 
-Distribution 2.0.0 створює повний ZIP для цільової архітектури. Пакет містить
+Distribution 2.1.0 створює повний ZIP для цільової архітектури. Пакет містить
 збережений Docker image, автономний Compose-файл, маніфести цілісності та
 скрипти install/update/rollback. База, BAG-файли й API-ключі до нього не входять.
 
@@ -87,13 +87,15 @@ sidecar, розпакуйте ZIP і виконайте:
 Copy-Item .env.example .env
 .\install.ps1
 .\new-admin-key.ps1 -Name initial-admin
+.\new-user-key.ps1 -Name dataset-e2e
+.\verify-tls.ps1
 ```
 
-Для розгортання потрібні Docker Engine і Compose, але не потрібні Git або
-Інтернет. У `compose.release.yaml` немає секції `build`, а `pull_policy` має
-значення `never`. Майбутній нативний Windows Installer зарезервований як
-додатковий формат Distribution і використовуватиме ті самі правила сумісності
-компонентів, даних та API-ключів.
+Для встановлення пакета потрібні Docker Engine і Compose, але не потрібні Git
+або registry: образи Server і зафіксованого Caddy вже містяться у ZIP. Для
+першої видачі й поновлення публічного сертифіката потрібні коректний DNS та
+вихідний доступ до ACME. Зберігайте одноразово показаний e2e `user`-ключ лише у
+сховищі секретів і передавайте клієнту як `DSM_SERVER_TOKEN`.
 
 Дивіться [посібник Distribution](distribution/DISTRIBUTION.uk.md) і
 [свідчення локального приймання Distribution 2.0](docs/acceptance/distribution-2.0.0.uk.md).
@@ -210,7 +212,7 @@ Invoke-WebRequest ("http://127.0.0.1:8080" + $ticket.download_url) -OutFile data
 Адмін може перенести застарілі вкладені шляхи v2 до плоского каталогу BAG лише
 після серверної перевірки розміру та SHA-256.
 
-## Оновлення до Backend/Frontend 4.0.0, Process 2.0.0 і Distribution 2.0.0
+## Оновлення до Backend/Frontend 4.0.0, Process 2.0.0 і Distribution 2.1.0
 
 1. Створіть резервну копію повного каталогу `var/`.
 2. Розгорніть image Backend 4.0.0 з тим самим каталогом даних.
@@ -220,7 +222,7 @@ Invoke-WebRequest ("http://127.0.0.1:8080" + $ticket.download_url) -OutFile data
    профілі кожного сімейства в каталозі й за потреби призначте `dev_01` тощо.
 5. Перевірте початкові публічні Datasets і дзеркала у `/admin`.
 6. Переконайтеся, що `/health` показує Backend 4.0.0, Frontend 4.0.0,
-   Process 2.0.0, Distribution 2.0.0, `schema_version: 1.0` і
+   Process 2.0.0, Distribution 2.1.0, `schema_version: 1.0` і
    `key_store_ready: true`.
 7. Переконайтеся, що `/versions` відповідає `versions.json` і діапазонам
    сумісності розгорнутих компонентів.

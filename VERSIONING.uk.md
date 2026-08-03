@@ -9,7 +9,7 @@
 | Backend | HTTP API, автентифікація, сховище, міграції бази й runtime сервера | 4.0.0 | `backend-v4.0.0` |
 | Frontend | Публічний каталог та адміністративний вебінтерфейс | 4.0.0 | `frontend-v4.0.0` |
 | Залежність Process | Канонічні політики у `DataSetsManager/DataSetsManager` | 2.0.0 | `process-v2.0.0` |
-| Distribution | Офлайн-комплекти, інсталятори, package manifests і автоматизація розгортання | 2.0.0 | `distribution-v2.0.0` |
+| Distribution | Офлайн-комплекти, інсталятори, package manifests і автоматизація розгортання | 2.1.0 | `distribution-v2.1.0` |
 
 `versions.json` — канонічний машинозчитуваний маніфест. Backend завантажує й
 перевіряє його під час запуску та віддає через `GET /versions`. Ті самі значення
@@ -45,7 +45,7 @@ Distribution не залежить від конкретної технолог�
   "backend": "4.0.0",
   "frontend": "4.0.0",
   "process": "2.0.0",
-  "distribution": "2.0.0",
+  "distribution": "2.1.0",
   "compatibility": {
     "frontend_requires_backend": ">=4.0.0 <5.0.0",
     "process_applies_to_backend": ">=4.0.0 <5.0.0",

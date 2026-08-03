@@ -4,7 +4,7 @@ display_name: DataSetsManager Server
 version_streams:
   backend: 4.0.0
   frontend: 4.0.0
-  distribution: 2.0.0
+  distribution: 2.1.0
 dependencies:
   process: 2.0.0
 owner: NeoUKR

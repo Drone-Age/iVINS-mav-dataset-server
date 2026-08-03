@@ -2,6 +2,13 @@
 
 [Українська версія](CHANGELOG.distribution.uk.md)
 
+## 2.1.0 — 2026-08-03
+
+- Added pinned Caddy 2.11.4 to Docker bundles with automatic HTTPS, HTTP
+  redirects and HSTS while keeping Gunicorn private to the Compose network.
+- Added TLS qualification and dedicated one-time `user` key tools.
+- Added proxy image/config integrity metadata and secret-safe logging defaults.
+
 ## 2.0.0 — 2026-08-02
 
 - Renamed OCI and bundle artifacts to `datasetsmanager-server`.
